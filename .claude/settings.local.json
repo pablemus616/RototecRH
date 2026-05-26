@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:FuentesRototecRH *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npx tsc -b 2>&1 | Select-Object -Last 80)",
+      "PowerShell(npx vite build 2>&1 | Select-Object -Last 40)",
+      "PowerShell(npx vite --port 5173 2>&1)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri http://localhost:5173/ -UseBasicParsing -TimeoutSec 5; \"$\\($r.StatusCode\\) $\\($r.StatusDescription\\)`nContent length: $\\($r.Content.Length\\)`nContains root div: $\\($r.Content -match '<div id=\\\\\"root\\\\\">'\\)\" } catch { \"ERROR: $_\" })",
+      "Bash(npm run *)"
+    ]
+  }
+}
