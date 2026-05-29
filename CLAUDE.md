@@ -59,13 +59,65 @@ src/
 
 ## Capa de API y mock
 
-`src/api/employees.ts` exporta `empleadosApi = USE_MOCK ? mockApi : realApi`. Cuando llegue la URL del microservicio:
+Cada módulo en `src/api/*.ts` exporta `<recurso>Api = USE_MOCK ? mockApi : realApi`. Los siete archivos (`client.ts`, `employees.ts`, `turnos.ts`, `ausencias.ts`, `asistencias.ts`, `bonificaciones.ts`, `planilla.ts`) ya tienen simetría completa mock ↔ real: cada método del mock tiene su contraparte en realApi con el mismo nombre y firma.
 
-1. Cambiar `VITE_USE_MOCK=false` en `.env.local` y actualizar `VITE_API_BASE_URL`.
-2. Verificar que los endpoints reales coincidan con `realApi` (`GET /empleados`, `GET /empleados/:id`, `POST /empleados`, `PUT /empleados/:id`, `POST /empleados/:id/baja`, `POST /empleados/:id/reactivar`). Ajustar si difieren.
-3. Para módulos posteriores (turnos, ausencias, etc.) seguir el mismo patrón: `mockApi` con localStorage + `realApi` con axios, exportar el seleccionado por flag.
+El mock seed de empleados está en `seedIfEmpty()` (3 empleados: María García, Juan Carlos Pérez, Ana Lucía Hernández — esta última de baja). Para reiniciar datos: borrar las claves `rototec.*` en localStorage (clave de empleados: `rototec.empleados.v2`).
 
-El mock seed de empleados está en `seedIfEmpty()` (3 empleados: María García, Juan Carlos Pérez, Ana Lucía Hernández — esta última de baja). Para reiniciar datos: borrar `rototec.empleados.v1` en localStorage.
+### Interceptor de errores (`client.ts`)
+
+- Toast genérico vía sonner solo para errores **red caída o 5xx** (los errores 4xx llegan al `onError` del componente con su mensaje específico, evitando dobles toasts).
+- Helper `extractApiErrorMessage(err)` exportado: extrae `data.message` / `data.error` del payload o cae a `Error <status>: <message>`.
+- En `DEV` se mantiene un `console.error` con status + payload.
+- Gancho `TODO(auth)` para redirigir a `/login` en `401` cuando exista autenticación.
+
+### Switch a backend real — checklist día 0
+
+1. Copiar `.env.example` a `.env.local` y poner la URL real en `VITE_API_BASE_URL`.
+2. Cambiar `VITE_USE_MOCK=false`.
+3. Verificar contra el equipo backend que los endpoints listados abajo coinciden exactamente (paths, verbos, query params). Si difieren: ajustar solo el bloque `realApi` del archivo correspondiente.
+4. Confirmar si hay autenticación. Si la hay: configurar interceptor de request para inyectar `Authorization: Bearer …` y activar la redirección en `401`.
+5. Smoke test manual en `npm run dev`: listar empleados → crear uno → asignar turno → registrar marcaje → generar planilla → cerrar planilla.
+
+### Contrato esperado del microservicio
+
+Endpoints que `realApi` consume hoy. Cualquier diferencia con el backend real se ajusta en el bloque `realApi` del archivo correspondiente.
+
+**Empleados** (`api/employees.ts`)
+- `GET /empleados`
+- `GET /empleados/:id`
+- `POST /empleados` (body: `EmpleadoInput`)
+- `PUT /empleados/:id` (body: `EmpleadoInput`)
+- `POST /empleados/:id/baja` (body: `BajaInput`)
+- `POST /empleados/:id/reactivar`
+
+**Turnos y asignaciones** (`api/turnos.ts`)
+- `GET /turnos` · `GET /turnos/:id` · `POST /turnos` · `PUT /turnos/:id`
+- `POST /turnos/:id/desactivar` · `POST /turnos/:id/reactivar`
+- `GET /asignaciones-turno` · `POST /asignaciones-turno`
+- `GET /empleados/:id/asignaciones-turno`
+
+**Ausencias y atrasos** (`api/ausencias.ts`)
+- `GET /ausencias?desde=&hasta=` · `GET /empleados/:id/ausencias`
+- `POST /ausencias` · `PUT /ausencias/:id` · `DELETE /ausencias/:id`
+- `GET /atrasos?desde=&hasta=` · `GET /empleados/:id/atrasos`
+- `POST /atrasos` · `PUT /atrasos/:id` · `DELETE /atrasos/:id`
+
+**Asistencias** (`api/asistencias.ts`)
+- `GET /asistencias?desde=&hasta=`
+- `GET /empleados/:id/asistencias?desde=&hasta=`
+- `POST /asistencias` (upsert por `empleadoId + fecha`)
+- `DELETE /asistencias?empleadoId=&fecha=`
+
+**Bonificaciones** (`api/bonificaciones.ts`)
+- `GET /bonificaciones?periodo=` · `GET /empleados/:id/bonificaciones`
+- `POST /bonificaciones` · `POST /bonificaciones/batch`
+- `PUT /bonificaciones/:id` · `DELETE /bonificaciones/:id`
+
+**Planilla** (`api/planilla.ts`)
+- `GET /planillas` · `GET /planillas/:periodo`
+- `POST /planillas/:periodo/generar` (body: `{ desde, hasta }`)
+- `PATCH /planillas/:periodo/lineas/:empleadoId` (body: `Partial<LineaInputManual>`)
+- `POST /planillas/:periodo/cerrar`
 
 ## Variables de entorno
 
