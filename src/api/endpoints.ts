@@ -25,6 +25,9 @@ import { atrasosApi, ausenciasApi } from './ausencias'
 import { asistenciasApi } from './asistencias'
 import { bonificacionesApi } from './bonificaciones'
 import { planillaApi } from './planilla'
+import { authApi, type AuthUser, type LoginInput, type LoginResult } from './auth'
+import { catalogosApi, type Catalogos } from './catalogos'
+import { organizacionApi, type ArbolOrganizacional } from './organizacion'
 
 // ==================== Empleados ====================
 
@@ -145,3 +148,16 @@ export const updateLineaPlanilla = (
 ): Promise<Planilla> => planillaApi.updateLinea(periodo, empleadoId, parche)
 export const cerrarPlanilla = (periodo: string): Promise<Planilla> =>
   planillaApi.cerrar(periodo)
+
+// ==================== Auth ====================
+
+export const login = (input: LoginInput): Promise<LoginResult> => authApi.login(input)
+export const getMe = (): Promise<AuthUser> => authApi.me()
+export const logout = (): Promise<void> => authApi.logout()
+
+// ==================== Catálogos ====================
+
+export const getCatalogos = (): Promise<Catalogos> => catalogosApi.obtenerCatalogos()
+
+export const getArbolOrganizacional = (): Promise<ArbolOrganizacional> =>
+  organizacionApi.obtenerArbol()

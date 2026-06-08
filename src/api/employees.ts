@@ -1,5 +1,12 @@
-import type { BajaInput, Empleado, EmpleadoInput } from '@/types'
-import { api, USE_MOCK } from './client'
+import type {
+  BajaInput,
+  CreateEmpleadoInput,
+  CreateEmpleadoResponse,
+  Empleado,
+  EmpleadoBackend,
+  EmpleadoInput,
+} from '@/types'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_KEY = 'rototec.empleados.v2'
 
@@ -147,6 +154,17 @@ const mockApi = {
     await delay()
     return readStore()
   },
+  // Lista con el shape del backend real (para la página de empleados migrada).
+  async listBackend(): Promise<EmpleadoBackend[]> {
+    await delay()
+    return readStore() as unknown as EmpleadoBackend[]
+  },
+  async getBackend(id: string): Promise<EmpleadoBackend> {
+    await delay()
+    const found = (readStore() as unknown as EmpleadoBackend[]).find((e) => String(e.id) === String(id))
+    if (!found) throw new Error('Empleado no encontrado')
+    return found
+  },
   async get(id: string): Promise<Empleado> {
     await delay()
     const found = readStore().find((e) => e.id === id)
@@ -161,6 +179,11 @@ const mockApi = {
     const nuevo: Empleado = { ...input, id: genId(), estado: 'ACTIVO' }
     writeStore([nuevo, ...all])
     return nuevo
+  },
+  // Alta vía wizard (contrato nuevo snake_case). Stub en mock; el real pega a /rrhh/empleados.
+  async crearAlta(_input: CreateEmpleadoInput): Promise<CreateEmpleadoResponse> {
+    await delay()
+    return { id: Date.now(), codigoEmpleadoBio: Math.floor(Math.random() * 900) + 100 }
   },
   async update(id: string, input: EmpleadoInput): Promise<Empleado> {
     await delay()
@@ -209,12 +232,24 @@ const realApi = {
     const { data } = await api.get<Empleado[]>('/empleados')
     return data
   },
+  async listBackend(): Promise<EmpleadoBackend[]> {
+    const { data } = await api.get<EmpleadoBackend[]>('/empleados')
+    return data
+  },
+  async getBackend(id: string): Promise<EmpleadoBackend> {
+    const { data } = await api.get<EmpleadoBackend>(`/empleados/${id}`)
+    return data
+  },
   async get(id: string): Promise<Empleado> {
     const { data } = await api.get<Empleado>(`/empleados/${id}`)
     return data
   },
   async create(input: EmpleadoInput): Promise<Empleado> {
     const { data } = await api.post<Empleado>('/empleados', input)
+    return data
+  },
+  async crearAlta(input: CreateEmpleadoInput): Promise<CreateEmpleadoResponse> {
+    const { data } = await api.post<CreateEmpleadoResponse>('/empleados', input)
     return data
   },
   async update(id: string, input: EmpleadoInput): Promise<Empleado> {

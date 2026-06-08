@@ -22,27 +22,11 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  BANCOS_GUATEMALA,
-  COMUNIDADES_LINGUISTICAS,
-  DEPARTAMENTOS_ROTOTEC,
-  ESTADOS_CIVILES,
-  FORMAS_PAGO,
-  JORNADAS,
-  NIVELES_ACADEMICOS,
-  PAISES,
-  PUEBLOS_GUATEMALA,
-  SEXOS,
-  SUCURSAL_DEFAULT,
-  TEMPORALIDAD_CONTRATO,
-  TIPOS_CONTRATO,
-  TIPOS_CUENTA,
-  TIPOS_DISCAPACIDAD,
-  TIPOS_DOCUMENTO,
-} from '@/constants/guatemala'
+import { DEPARTAMENTOS_ROTOTEC, SUCURSAL_DEFAULT } from '@/constants/guatemala'
+import { useCatalogos } from '@/hooks/useCatalogos'
 import { useCreateEmpleado, useUpdateEmpleado } from '@/hooks/useEmpleados'
 import { empleadoSchema, type EmpleadoFormValues } from '@/lib/validators'
-import type { Empleado } from '@/types'
+import type { Empleado, EmpleadoInput } from '@/types'
 
 interface Props {
   open: boolean
@@ -50,9 +34,6 @@ interface Props {
   mode: 'create' | 'edit'
   empleado?: Empleado
 }
-
-const codigoOpts = (arr: readonly { codigo: string; label: string }[]) =>
-  arr.map((x) => ({ value: x.codigo, label: x.label }))
 
 const defaultValues: EmpleadoFormValues = {
   primerNombre: '',
@@ -98,6 +79,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
   const createMut = useCreateEmpleado()
   const updateMut = useUpdateEmpleado(empleado?.id ?? '')
   const isSubmitting = createMut.isPending || updateMut.isPending
+  const { data: cat } = useCatalogos()
 
   const form = useForm<EmpleadoFormValues>({
     resolver: zodResolver(empleadoSchema),
@@ -153,11 +135,13 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
 
   async function onSubmit(values: EmpleadoFormValues) {
     try {
+      // Los selects acotan los valores a los del catálogo (BD); el cast adapta
+      // EmpleadoFormValues (campos string tras relajar Zod) a EmpleadoInput (uniones).
       if (mode === 'create') {
-        await createMut.mutateAsync(values)
+        await createMut.mutateAsync(values as EmpleadoInput)
         toast.success('Empleado creado')
       } else if (empleado) {
-        await updateMut.mutateAsync(values)
+        await updateMut.mutateAsync(values as EmpleadoInput)
         toast.success('Empleado actualizado')
       }
       onOpenChange(false)
@@ -284,7 +268,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('tipoDocumento', v as EmpleadoFormValues['tipoDocumento'])
                       }
-                      items={TIPOS_DOCUMENTO}
+                      items={cat?.tiposDocumento ?? []}
                     />
                   </Field>
                   <Field label="DPI *" error={errors.dpi?.message}>
@@ -308,7 +292,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('sexo')}
                       onValueChange={(v) => form.setValue('sexo', v as EmpleadoFormValues['sexo'])}
-                      items={SEXOS}
+                      items={cat?.sexos ?? []}
                     />
                   </Field>
                   <Field label="Estado civil *" error={errors.estadoCivil?.message}>
@@ -317,7 +301,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('estadoCivil', v as EmpleadoFormValues['estadoCivil'])
                       }
-                      items={ESTADOS_CIVILES}
+                      items={cat?.estadosCiviles ?? []}
                     />
                   </Field>
                   <Field label="Cantidad de hijos *" error={errors.cantidadHijos?.message}>
@@ -327,7 +311,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('tipoDiscapacidad')}
                       onValueChange={(v) => form.setValue('tipoDiscapacidad', v)}
-                      items={codigoOpts(TIPOS_DISCAPACIDAD)}
+                      items={cat?.tiposDiscapacidad ?? []}
                     />
                   </Field>
                 </div>
@@ -340,21 +324,21 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('nacionalidad')}
                       onValueChange={(v) => form.setValue('nacionalidad', v)}
-                      items={codigoOpts(PAISES)}
+                      items={cat?.paises ?? []}
                     />
                   </Field>
                   <Field label="País de origen *" error={errors.paisOrigen?.message}>
                     <ControlledSelect
                       value={form.watch('paisOrigen')}
                       onValueChange={(v) => form.setValue('paisOrigen', v)}
-                      items={codigoOpts(PAISES)}
+                      items={cat?.paises ?? []}
                     />
                   </Field>
                   <Field label="Pueblo de pertenencia *" error={errors.puebloPertenencia?.message}>
                     <ControlledSelect
                       value={form.watch('puebloPertenencia')}
                       onValueChange={(v) => form.setValue('puebloPertenencia', v)}
-                      items={codigoOpts(PUEBLOS_GUATEMALA)}
+                      items={cat?.pueblos ?? []}
                     />
                   </Field>
                   <Field
@@ -364,7 +348,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('comunidadLinguistica')}
                       onValueChange={(v) => form.setValue('comunidadLinguistica', v)}
-                      items={codigoOpts(COMUNIDADES_LINGUISTICAS)}
+                      items={cat?.comunidadesLinguisticas ?? []}
                     />
                   </Field>
                   <Field
@@ -409,7 +393,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('jornada', v as EmpleadoFormValues['jornada'])
                       }
-                      items={JORNADAS}
+                      items={cat?.jornadas ?? []}
                     />
                   </Field>
                   <Field
@@ -424,7 +408,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                           v as EmpleadoFormValues['temporalidadContrato'],
                         )
                       }
-                      items={TEMPORALIDAD_CONTRATO}
+                      items={cat?.temporalidadContrato ?? []}
                     />
                   </Field>
                   <Field label="Tipo de contrato *" error={errors.tipoContrato?.message}>
@@ -433,7 +417,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('tipoContrato', v as EmpleadoFormValues['tipoContrato'])
                       }
-                      items={TIPOS_CONTRATO}
+                      items={cat?.tiposContrato ?? []}
                     />
                   </Field>
                   <Field label="Fecha de ingreso *" error={errors.fechaIngreso?.message}>
@@ -458,7 +442,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('nivelAcademico')}
                       onValueChange={(v) => form.setValue('nivelAcademico', v)}
-                      items={codigoOpts(NIVELES_ACADEMICOS)}
+                      items={cat?.nivelesAcademicos ?? []}
                     />
                   </Field>
                   <Field
@@ -490,7 +474,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('formaPago', v as EmpleadoFormValues['formaPago'])
                       }
-                      items={FORMAS_PAGO}
+                      items={cat?.formasPago ?? []}
                     />
                   </Field>
                   <Field
@@ -500,10 +484,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                     <ControlledSelect
                       value={form.watch('codigoBanco') ?? ''}
                       onValueChange={(v) => form.setValue('codigoBanco', v)}
-                      items={BANCOS_GUATEMALA.map((b) => ({
-                        value: b.codigo,
-                        label: `${b.codigo} — ${b.nombre}`,
-                      }))}
+                      items={cat?.bancos ?? []}
                       disabled={!esTransferencia}
                       placeholder="Seleccionar"
                     />
@@ -526,7 +507,7 @@ export function EmpleadoFormSheet({ open, onOpenChange, mode, empleado }: Props)
                       onValueChange={(v) =>
                         form.setValue('tipoCuenta', v as EmpleadoFormValues['tipoCuenta'])
                       }
-                      items={TIPOS_CUENTA}
+                      items={cat?.tiposCuenta ?? []}
                       disabled={!esTransferencia}
                       placeholder="Seleccionar"
                     />

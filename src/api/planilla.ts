@@ -8,7 +8,7 @@ import {
   generarPlanilla,
   type ParamsGenerarPlanilla,
 } from '@/lib/planilla'
-import { api, USE_MOCK } from './client'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_KEY = 'rototec.planillas.v1'
 

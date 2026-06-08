@@ -1,0 +1,45 @@
+<h2>Diseño — Wizard de alta (Layout A)</h2>
+<p class="subtitle">Ruta propia <code>/empleados/nuevo</code>. Riel de pasos a la izquierda, contenido a la derecha. Detalles y aprobación en la terminal.</p>
+
+<style>
+  .rail { display:flex; gap:14px; }
+  .steps { width:300px; display:flex; flex-direction:column; gap:6px; }
+  .step { display:flex; gap:9px; align-items:flex-start; border:1px solid rgba(128,128,128,.3); border-radius:9px; padding:9px 11px; }
+  .step .n { width:22px;height:22px;border-radius:50%;background:rgba(128,128,128,.22);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0 }
+  .step.api .n { background:rgba(59,130,246,.30) }
+  .step.done .n { background:rgba(34,197,94,.55) }
+  .step .t { font-weight:600;font-size:13px }
+  .step .d { font-size:11px;opacity:.65;margin-top:2px }
+  .tag { font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:999px;border:1px solid rgba(128,128,128,.4);opacity:.8 }
+  .tag.api { color:#3b82f6;border-color:rgba(59,130,246,.5) }
+  .panel { flex:1;border:1px dashed rgba(128,128,128,.45);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:9px }
+  .fld { height:30px;border:1px solid rgba(128,128,128,.35);border-radius:7px;background:rgba(128,128,128,.05) }
+  .row2 { display:flex;gap:8px } .row2>.fld{flex:1}
+  .navbtns{display:flex;justify-content:space-between;margin-top:auto}
+  .b{height:30px;width:90px;border-radius:7px;background:rgba(128,128,128,.28)} .b.pri{background:rgba(34,197,94,.55)}
+</style>
+
+<div class="rail">
+  <div class="steps">
+    <div class="step api done"><div class="n">1</div><div><div class="t">País <span class="tag api">API</span></div><div class="d">/company/paises</div></div></div>
+    <div class="step api done"><div class="n">2</div><div><div class="t">Empresa <span class="tag api">API</span></div><div class="d">/company/empresas</div></div></div>
+    <div class="step api"><div class="n">3</div><div><div class="t">Departamento <span class="tag api">API</span></div><div class="d">/departamentos/:empresaId</div></div></div>
+    <div class="step api"><div class="n">4</div><div><div class="t">Sub-departamento <span class="tag api">API</span></div><div class="d">/sub-departamentos/:deptoId</div></div></div>
+    <div class="step api"><div class="n">5</div><div><div class="t">Puesto <span class="tag api">API</span></div><div class="d">/puestos/:subDeptoId</div></div></div>
+    <div class="step"><div class="n">6</div><div><div class="t">Datos personales <span class="tag">local</span></div><div class="d">nombres · DPI/NIT/IGSS · nacimiento · sexo · estado civil · hijos · discapacidad · pueblo · comunidad ling. · contacto</div></div></div>
+    <div class="step"><div class="n">7</div><div><div class="t">Contrato y pago <span class="tag">local</span></div><div class="d">jornada · contrato · fechas · salario · profesión · forma de pago + banco</div></div></div>
+    <div class="step api"><div class="n">8</div><div><div class="t">Config. biométrico <span class="tag api">API</span></div><div class="d">/biotime/departamentos + /biotime/ubicaciones</div></div></div>
+  </div>
+
+  <div class="panel">
+    <div style="font-size:12px;opacity:.6;text-transform:uppercase;letter-spacing:.5px">Paso 6 · Datos personales (ejemplo)</div>
+    <div class="row2"><div class="fld"></div><div class="fld"></div></div>
+    <div class="row2"><div class="fld"></div><div class="fld"></div></div>
+    <div class="fld"></div>
+    <div class="row2"><div class="fld"></div><div class="fld"></div></div>
+    <div class="navbtns"><div class="b">Atrás</div><div class="b pri">Siguiente</div></div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px">Al terminar el paso 8 → <b>POST /rrhh/empleados</b> → <b>dialog de éxito</b> con ID, nombre, puesto y <b>código Biotime</b> (hay que copiarlo para poder cerrar).</p>
+<p class="subtitle">Validación: no se avanza de paso si los campos requeridos están vacíos o mal formateados (DPI 13 díg., NIT, salario mín., fechas, etc.).</p>

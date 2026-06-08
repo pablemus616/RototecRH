@@ -22,28 +22,51 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatQ, nombreParaMostrar } from '@/lib/utils'
-import { useEmpleadosList } from '@/hooks/useEmpleados'
-import { EmpleadoFormSheet } from './EmpleadoFormSheet'
+import { useEmpleadosBackendList } from '@/hooks/useEmpleados'
+import { useEmpresas } from '@/hooks/useCompanyCatalogos'
 import { EmpleadoStatusBadge } from './EmpleadoStatusBadge'
+import type { EmpleadoBackend } from '@/types'
 
 type EstadoFilter = 'TODOS' | 'ACTIVO' | 'BAJA'
 const PAGE_SIZE = 20
 
+/** Limpia una parte de nombre: null/undefined/'' y los literales 'null'/'undefined' → ''. */
+const limpioNombre = (v: string | null | undefined): string => {
+  const s = (v ?? '').trim()
+  return /^(null|undefined)$/i.test(s) ? '' : s
+}
+
+function displayName(e: EmpleadoBackend): string {
+  return nombreParaMostrar({
+    primerNombre: limpioNombre(e.primerNombre) || limpioNombre(e.nombre),
+    segundoNombre: limpioNombre(e.segundoNombre) || undefined,
+    tercerNombre: limpioNombre(e.tercerNombre) || undefined,
+    primerApellido: limpioNombre(e.primerApellido) || limpioNombre(e.apellido),
+    segundoApellido: limpioNombre(e.segundoApellido) || undefined,
+    apellidoCasada: limpioNombre(e.apellidoCasada) || undefined,
+  })
+}
+
 export default function EmpleadosListPage() {
   const navigate = useNavigate()
-  const { data, isLoading, isError } = useEmpleadosList()
+  const { data, isLoading, isError } = useEmpleadosBackendList()
+  const empresas = useEmpresas()
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<EstadoFilter>('TODOS')
   const [page, setPage] = useState(1)
-  const [sheetOpen, setSheetOpen] = useState(false)
+
+  const empresaNombre = (id: number | null) =>
+    empresas.data?.find((x) => x.id === id)?.nombre ?? (id != null ? String(id) : '—')
 
   const filtered = useMemo(() => {
     const t = filtroTexto.trim().toLowerCase()
     return (data ?? []).filter((e) => {
-      if (filtroEstado !== 'TODOS' && e.estado !== filtroEstado) return false
+      if (filtroEstado === 'ACTIVO' && !e.estaActivo) return false
+      if (filtroEstado === 'BAJA' && e.estaActivo) return false
       if (!t) return true
-      const full = nombreParaMostrar(e).toLowerCase()
-      return full.includes(t) || e.dpi.includes(t)
+      const full = displayName(e).toLowerCase()
+      const dpi = e.numeroIdentificacionNacional ?? ''
+      return full.includes(t) || dpi.includes(t)
     })
   }, [data, filtroTexto, filtroEstado])
 
@@ -66,7 +89,7 @@ export default function EmpleadosListPage() {
         <p className="text-sm text-muted-foreground">
           {filtered.length} empleado{filtered.length === 1 ? '' : 's'} en la vista actual
         </p>
-        <Button onClick={() => setSheetOpen(true)}>
+        <Button onClick={() => navigate('/empleados/nuevo')}>
           <Plus className="h-4 w-4" />
           Nuevo Empleado
         </Button>
@@ -108,11 +131,9 @@ export default function EmpleadosListPage() {
             <TableRow>
               <TableHead>Nombre completo</TableHead>
               <TableHead>DPI</TableHead>
-              <TableHead>Puesto</TableHead>
-              <TableHead>Depto.</TableHead>
-              <TableHead>Jornada</TableHead>
-              <TableHead className="text-right">Salario mensual</TableHead>
-              <TableHead>Fecha Ingreso</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead className="text-right">Salario base</TableHead>
+              <TableHead>Fecha contratación</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-20 text-right">Acciones</TableHead>
             </TableRow>
@@ -121,20 +142,20 @@ export default function EmpleadosListPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={7}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-destructive">
+                <TableCell colSpan={7} className="text-center text-destructive">
                   Error al cargar empleados
                 </TableCell>
               </TableRow>
             ) : pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                   Sin resultados
                 </TableCell>
               </TableRow>
@@ -145,19 +166,17 @@ export default function EmpleadosListPage() {
                   className="cursor-pointer"
                   onClick={() => navigate(`/empleados/${e.id}`)}
                 >
-                  <TableCell className="font-medium">{nombreParaMostrar(e)}</TableCell>
-                  <TableCell className="font-mono text-xs">{e.dpi}</TableCell>
-                  <TableCell>{e.puesto}</TableCell>
-                  <TableCell className="capitalize">
-                    {e.departamento.replace(/_/g, ' / ').toLowerCase()}
+                  <TableCell className="font-medium">{displayName(e)}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {e.numeroIdentificacionNacional ?? '—'}
                   </TableCell>
-                  <TableCell className="capitalize">{e.jornada.toLowerCase()}</TableCell>
+                  <TableCell>{empresaNombre(e.empresaId)}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatQ(e.salarioMensual)}
+                    {e.salarioBaseContrato != null ? formatQ(e.salarioBaseContrato) : '—'}
                   </TableCell>
-                  <TableCell>{formatDate(e.fechaIngreso)}</TableCell>
+                  <TableCell>{formatDate(e.fechaContratacion)}</TableCell>
                   <TableCell>
-                    <EmpleadoStatusBadge estado={e.estado} />
+                    <EmpleadoStatusBadge estado={e.estaActivo ? 'ACTIVO' : 'BAJA'} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -205,12 +224,6 @@ export default function EmpleadosListPage() {
           </div>
         )}
       </Card>
-
-      <EmpleadoFormSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        mode="create"
-      />
     </div>
   )
 }

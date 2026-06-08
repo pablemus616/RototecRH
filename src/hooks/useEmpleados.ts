@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { empleadosApi } from '@/api/employees'
-import type { BajaInput, EmpleadoInput } from '@/types'
+import type { BajaInput, CreateEmpleadoInput, CreateEmpleadoResponse, EmpleadoInput } from '@/types'
 
 const QK = {
   all: ['empleados'] as const,
@@ -11,6 +11,23 @@ export function useEmpleadosList() {
   return useQuery({
     queryKey: QK.all,
     queryFn: () => empleadosApi.list(),
+  })
+}
+
+/** Lista de empleados con el shape del backend real (página de empleados migrada). */
+export function useEmpleadosBackendList() {
+  return useQuery({
+    queryKey: [...QK.all, 'backend'] as const,
+    queryFn: () => empleadosApi.listBackend(),
+  })
+}
+
+/** Un empleado con el shape del backend real (detalle migrado). */
+export function useEmpleadoBackend(id: string | undefined) {
+  return useQuery({
+    queryKey: [...QK.all, 'backend', id ?? ''] as const,
+    queryFn: () => empleadosApi.getBackend(id as string),
+    enabled: Boolean(id),
   })
 }
 
@@ -26,6 +43,17 @@ export function useCreateEmpleado() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: EmpleadoInput) => empleadosApi.create(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.all })
+    },
+  })
+}
+
+/** Alta de empleado vía wizard (contrato snake_case → { id, codigoEmpleadoBio }). */
+export function useCrearAltaEmpleado() {
+  const qc = useQueryClient()
+  return useMutation<CreateEmpleadoResponse, Error, CreateEmpleadoInput>({
+    mutationFn: (input) => empleadosApi.crearAlta(input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.all })
     },

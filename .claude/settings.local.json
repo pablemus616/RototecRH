@@ -7,7 +7,10 @@
       "PowerShell(npx vite build 2>&1 | Select-Object -Last 40)",
       "PowerShell(npx vite --port 5173 2>&1)",
       "PowerShell(try { $r = Invoke-WebRequest -Uri http://localhost:5173/ -UseBasicParsing -TimeoutSec 5; \"$\\($r.StatusCode\\) $\\($r.StatusDescription\\)`nContent length: $\\($r.Content.Length\\)`nContains root div: $\\($r.Content -match '<div id=\\\\\"root\\\\\">'\\)\" } catch { \"ERROR: $_\" })",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(curl -s -m 4 -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3001/health)",
+      "Bash(curl -s -m 4 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:4012/auth/me)",
+      "Bash(curl -s -m 6 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3001/api/v2/auth/me)"
     ]
   }
 }

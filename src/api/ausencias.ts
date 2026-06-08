@@ -1,7 +1,7 @@
 import type { Atraso, AtrasoInput, Ausencia, AusenciaInput } from '@/types'
 import { REGLA_POR_TIPO } from '@/constants/ausencias'
 import { calcularAusencia, inicioDeSemana } from '@/lib/ausencias'
-import { api, USE_MOCK } from './client'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_AUSENCIAS = 'rototec.ausencias.v1'
 const STORAGE_ATRASOS = 'rototec.atrasos.v1'

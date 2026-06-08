@@ -3,7 +3,7 @@ import type {
   BonificacionBatchInput,
   BonificacionInput,
 } from '@/types'
-import { api, USE_MOCK } from './client'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_KEY = 'rototec.bonificaciones.v1'
 

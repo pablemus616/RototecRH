@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, UserMinus, UserCheck } from 'lucide-react'
+import { ArrowLeft, UserCheck, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -9,44 +9,66 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { formatDate, formatQ, nombreParaMostrar } from '@/lib/utils'
+import { useEmpleadoBackend, useReactivar } from '@/hooks/useEmpleados'
 import {
-  BANCOS_GUATEMALA,
-  COMUNIDADES_LINGUISTICAS,
-  DEPARTAMENTOS_ROTOTEC,
-  ESTADOS_CIVILES,
-  FORMAS_PAGO,
-  JORNADAS,
-  NIVELES_ACADEMICOS,
-  PAISES,
-  PUEBLOS_GUATEMALA,
+  usePaises,
+  useEmpresas,
+  useDepartamentos,
+  useSubDepartamentos,
+  usePuestos,
+} from '@/hooks/useCompanyCatalogos'
+import {
   SEXOS,
-  TEMPORALIDAD_CONTRATO,
-  TIPOS_BAJA,
-  TIPOS_CONTRATO,
-  TIPOS_CUENTA,
+  ESTADOS_CIVILES,
   TIPOS_DISCAPACIDAD,
-  TIPOS_DOCUMENTO,
+  PUEBLOS_GUATEMALA,
+  COMUNIDADES_LINGUISTICAS,
 } from '@/constants/guatemala'
-import { useEmpleado, useReactivar } from '@/hooks/useEmpleados'
-import { EmpleadoFormSheet } from './EmpleadoFormSheet'
 import { EmpleadoStatusBadge } from './EmpleadoStatusBadge'
 import { BajaDialog } from './BajaDialog'
-import { TurnoActualCard } from './TurnoActualCard'
+import type { EmpleadoBackend } from '@/types'
 
-function lookupValue<T extends { value: string; label: string }>(items: readonly T[], v: string) {
-  return items.find((i) => i.value === v)?.label ?? v
+/** Mapea un código/valor guardado a su etiqueta de catálogo (acepta value/codigo/codigoMintrab). */
+function labelDe(
+  items: readonly { label: string; value?: string; codigo?: string; codigoMintrab?: string }[],
+  v: string | null,
+): string {
+  if (!v) return '—'
+  return items.find((i) => i.value === v || i.codigo === v || i.codigoMintrab === v)?.label ?? v
 }
-function lookupCodigo<T extends { codigo: string; label: string }>(items: readonly T[], v: string) {
-  return items.find((i) => i.codigo === v)?.label ?? v
+
+/** Limpia una parte de nombre: null/undefined/'' y los literales 'null'/'undefined' → ''. */
+const limpioNombre = (v: string | null | undefined): string => {
+  const s = (v ?? '').trim()
+  return /^(null|undefined)$/i.test(s) ? '' : s
+}
+
+function displayName(e: EmpleadoBackend): string {
+  return nombreParaMostrar({
+    primerNombre: limpioNombre(e.primerNombre) || limpioNombre(e.nombre),
+    segundoNombre: limpioNombre(e.segundoNombre) || undefined,
+    tercerNombre: limpioNombre(e.tercerNombre) || undefined,
+    primerApellido: limpioNombre(e.primerApellido) || limpioNombre(e.apellido),
+    segundoApellido: limpioNombre(e.segundoApellido) || undefined,
+    apellidoCasada: limpioNombre(e.apellidoCasada) || undefined,
+  })
 }
 
 export default function EmpleadoDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data, isLoading, isError } = useEmpleado(id)
+  const { data, isLoading, isError } = useEmpleadoBackend(id)
   const reactivar = useReactivar(id ?? '')
-  const [editOpen, setEditOpen] = useState(false)
   const [bajaOpen, setBajaOpen] = useState(false)
+
+  // Resolución de nombres de catálogo (cacheado por TanStack Query).
+  // La empresa se busca dentro del país del propio empleado (paisId real, sin depender del SP con NULL).
+  const paises = usePaises()
+  const paisIdEmpleado = paises.data?.find((p) => p.codigo === data?.pais)?.id
+  const empresas = useEmpresas(paisIdEmpleado)
+  const departamentos = useDepartamentos(data?.empresaId ?? undefined)
+  const subDeps = useSubDepartamentos(data?.idDepartamento ?? undefined)
+  const puestos = usePuestos(data?.idSubDepartamento ?? undefined)
 
   if (isLoading) {
     return <Skeleton className="h-96 w-full" />
@@ -77,11 +99,12 @@ export default function EmpleadoDetailPage() {
     }
   }
 
-  const banco = data.codigoBanco
-    ? BANCOS_GUATEMALA.find((b) => b.codigo === data.codigoBanco)
-    : undefined
-  const departamentoLabel = lookupValue(DEPARTAMENTOS_ROTOTEC, data.departamento)
-  const nombreDisplay = nombreParaMostrar(data)
+  const nombreDisplay = displayName(data)
+  const empresaNombre = empresas.data?.find((e) => e.id === data.empresaId)?.nombre ?? '—'
+  const deptoNombre = departamentos.data?.find((d) => d.id === data.idDepartamento)?.nombre ?? '—'
+  const subDeptoNombre = subDeps.data?.find((s) => s.id === data.idSubDepartamento)?.nombre ?? '—'
+  const puestoNombre = puestos.data?.find((p) => p.id === data.idPuesto)?.nombre ?? '—'
+  const paisNombre = paises.data?.find((p) => p.codigo === data.pais)?.nombre ?? data.pais ?? '—'
 
   return (
     <div className="space-y-6">
@@ -91,11 +114,7 @@ export default function EmpleadoDetailPage() {
           Volver
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-4 w-4" />
-            Editar
-          </Button>
-          {data.estado === 'ACTIVO' ? (
+          {data.estaActivo ? (
             <Button variant="destructive" onClick={() => setBajaOpen(true)}>
               <UserMinus className="h-4 w-4" />
               Dar de baja
@@ -115,18 +134,18 @@ export default function EmpleadoDetailPage() {
             <div>
               <CardTitle className="text-2xl">{nombreDisplay}</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                {data.puesto} · {departamentoLabel}
+                {puestoNombre} · {deptoNombre} · {empresaNombre}
               </p>
             </div>
-            <EmpleadoStatusBadge estado={data.estado} />
+            <EmpleadoStatusBadge estado={data.estaActivo ? 'ACTIVO' : 'BAJA'} />
           </div>
         </CardHeader>
         <CardContent>
-          {data.estado === 'BAJA' && (
+          {!data.estaActivo && (data.tipoBaja || data.fechaBaja || data.motivoBaja) && (
             <Alert variant="destructive" className="mb-4">
               <AlertTitle>Empleado dado de baja</AlertTitle>
               <AlertDescription>
-                <strong>{lookupValue(TIPOS_BAJA, data.tipoBaja ?? '')}</strong>
+                <strong>{data.tipoBaja ?? '—'}</strong>
                 {' · '}
                 {formatDate(data.fechaBaja)}
                 {data.motivoBaja && (
@@ -141,116 +160,78 @@ export default function EmpleadoDetailPage() {
 
           <SectionGrid>
             <Section title="Identificación personal">
-              <Item label="Tipo de documento" value={lookupValue(TIPOS_DOCUMENTO, data.tipoDocumento)} />
-              <Item label="DPI" value={data.dpi} mono />
-              <Item label="NIT" value={data.nit} mono />
-              <Item label="IGSS" value={data.igss} mono />
+              <Item label="DPI" value={data.numeroIdentificacionNacional ?? '—'} mono />
+              <Item label="NIT" value={data.idTributario ?? '—'} mono />
+              <Item label="IGSS" value={data.idSeguroSocial ?? '—'} mono />
               <Item label="Fecha de nacimiento" value={formatDate(data.fechaNacimiento)} />
-              <Item label="Sexo" value={lookupValue(SEXOS, data.sexo)} />
-              <Item label="Estado civil" value={lookupValue(ESTADOS_CIVILES, data.estadoCivil)} />
-              <Item label="Hijos" value={String(data.cantidadHijos)} />
-              <Item
-                label="Apellido de casada"
-                value={data.apellidoCasada || '—'}
-              />
-              <Item
-                label="Discapacidad"
-                value={lookupCodigo(TIPOS_DISCAPACIDAD, data.tipoDiscapacidad)}
-              />
+              <Item label="Sexo" value={labelDe(SEXOS, data.sexo)} />
+              <Item label="Estado civil" value={labelDe(ESTADOS_CIVILES, data.estadoCivil)} />
+              <Item label="Hijos" value={data.cantidadHijos != null ? String(data.cantidadHijos) : '—'} />
+              <Item label="Apellido de casada" value={data.apellidoCasada || '—'} />
+              <Item label="Discapacidad" value={labelDe(TIPOS_DISCAPACIDAD, data.tipoDiscapacidad)} />
+              <Item label="Pasaporte" value={data.pasaporte || '—'} />
             </Section>
 
             <Section title="Cultural (MINTRAB)">
-              <Item label="Nacionalidad" value={lookupCodigo(PAISES, data.nacionalidad)} />
-              <Item label="País de origen" value={lookupCodigo(PAISES, data.paisOrigen)} />
-              <Item
-                label="Pueblo de pertenencia"
-                value={lookupCodigo(PUEBLOS_GUATEMALA, data.puebloPertenencia)}
-              />
-              <Item
-                label="Comunidad lingüística"
-                value={lookupCodigo(COMUNIDADES_LINGUISTICAS, data.comunidadLinguistica)}
-              />
-              <Item
-                label="Lugar de nacimiento"
-                value={data.lugarNacimientoMunicipio || '—'}
-              />
-              <Item
-                label="Permiso extranjero"
-                value={data.permisoExtranjero || '—'}
-              />
+              <Item label="País" value={paisNombre} />
+              <Item label="Pueblo de pertenencia" value={labelDe(PUEBLOS_GUATEMALA, data.puebloPertenencia)} />
+              <Item label="Comunidad lingüística" value={labelDe(COMUNIDADES_LINGUISTICAS, data.comunidadLinguistica)} />
+              <Item label="Grupo étnico" value={data.grupoEtnico || '—'} />
+              <Item label="Lugar de nacimiento" value={data.lugarNacimientoMunicipio || '—'} />
+              <Item label="Permiso extranjero" value={data.permisoExtranjero || '—'} />
             </Section>
 
             <Section title="Laboral">
-              <Item label="Puesto" value={data.puesto} />
-              <Item label="Departamento" value={departamentoLabel} />
-              <Item label="Jornada" value={lookupValue(JORNADAS, data.jornada)} />
-              <Item
-                label="Temporalidad"
-                value={lookupValue(TEMPORALIDAD_CONTRATO, data.temporalidadContrato)}
-              />
-              <Item
-                label="Tipo de contrato"
-                value={lookupValue(TIPOS_CONTRATO, data.tipoContrato)}
-              />
-              <Item label="Sucursal" value={data.sucursal} />
-              <Item label="Fecha de ingreso" value={formatDate(data.fechaIngreso)} />
+              <Item label="Empresa" value={empresaNombre} />
+              <Item label="Departamento" value={deptoNombre} />
+              <Item label="Sub-departamento" value={subDeptoNombre} />
+              <Item label="Puesto" value={puestoNombre} />
+              <Item label="Jornada" value={data.jornada ?? '—'} />
+              <Item label="Temporalidad" value={data.temporalidadContrato ?? '—'} />
+              <Item label="Tipo de contrato" value={data.tipoContrato ?? '—'} />
+              <Item label="Fecha de contratación" value={formatDate(data.fechaContratacion)} />
               {data.fechaReingreso && (
                 <Item label="Fecha de reingreso" value={formatDate(data.fechaReingreso)} />
               )}
-              <Item label="Salario mensual" value={formatQ(data.salarioMensual)} />
               <Item
-                label="Nivel académico"
-                value={lookupCodigo(NIVELES_ACADEMICOS, data.nivelAcademico)}
+                label="Salario base"
+                value={data.salarioBaseContrato != null ? formatQ(data.salarioBaseContrato) : '—'}
               />
-              <Item label="Título / Profesión" value={data.tituloProfesion || '—'} />
+              <Item label="Profesión" value={data.profesion || '—'} />
+              <Item label="Título / diploma" value={data.titulo || '—'} />
             </Section>
 
-            <Section title="Bancario">
-              <Item label="Forma de pago" value={lookupValue(FORMAS_PAGO, data.formaPago)} />
-              <Item
-                label="Código de banco"
-                value={
-                  banco
-                    ? `${banco.codigo} — ${banco.nombre}`
-                    : data.codigoBanco || '—'
-                }
-              />
+            <Section title="Bancario y contacto">
+              <Item label="Forma de pago" value={data.formaPago ?? '—'} />
+              <Item label="Código de banco" value={data.codigoBanco || '—'} />
               <Item label="Número de cuenta" value={data.numeroCuenta || '—'} mono />
-              <Item
-                label="Tipo de cuenta"
-                value={data.tipoCuenta ? lookupValue(TIPOS_CUENTA, data.tipoCuenta) : '—'}
-              />
+              <Item label="Tipo de cuenta" value={data.tipoCuenta ?? '—'} />
+              <Item label="Teléfono" value={data.telefono || '—'} />
+              <Item label="Correo" value={data.correo || '—'} />
+              <Item label="Código Biotime" value={data.codigoEmpleadoBio != null ? String(data.codigoEmpleadoBio) : '—'} mono />
             </Section>
           </SectionGrid>
         </CardContent>
       </Card>
 
-      <TurnoActualCard empleadoId={data.id} empleadoNombre={nombreDisplay} />
-
-      <EmpleadoFormSheet
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        mode="edit"
-        empleado={data}
-      />
       <BajaDialog
         open={bajaOpen}
         onOpenChange={setBajaOpen}
-        empleadoId={data.id}
+        empleadoId={String(data.id)}
         empleadoNombre={nombreDisplay}
       />
     </div>
   )
 }
 
-function SectionGrid({ children }: { children: React.ReactNode }) {
+function SectionGrid({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-1 gap-6 md:grid-cols-2">{children}</div>
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h3>
       <Separator className="mb-3" />

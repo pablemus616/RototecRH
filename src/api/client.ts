@@ -1,10 +1,8 @@
-import axios, { type AxiosError, isAxiosError } from 'axios'
+import axios, { type AxiosError, type AxiosInstance, isAxiosError } from 'axios'
 import { toast } from '@/components/ui/sonner'
+import { clearAuth, getToken } from '@/lib/auth-storage'
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-})
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 export function extractApiErrorMessage(err: unknown): string {
   if (isAxiosError(err)) {
@@ -21,23 +19,71 @@ export function extractApiErrorMessage(err: unknown): string {
   return 'Error desconocido'
 }
 
-api.interceptors.response.use(
-  (res) => res,
-  (err: AxiosError) => {
-    const status = err.response?.status
-    const isNetwork = !err.response
-    const is5xx = status !== undefined && status >= 500
-    // Toast genérico solo para errores que las mutaciones no esperan manejar:
-    // red caída o 5xx. Los 4xx llegan al onError del componente con su mensaje específico.
-    if (isNetwork || is5xx) {
-      toast.error(extractApiErrorMessage(err))
+function attachInterceptors(instance: AxiosInstance, opts: { unwrapEnvelope?: boolean } = {}) {
+  // Inyecta el token de sesión en cada request (esquema Bearer, igual que el resto de MS).
+  instance.interceptors.request.use((config) => {
+    const token = getToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
-    // TODO(auth): cuando exista login, en status === 401 redirigir a /login y limpiar token.
-    if (import.meta.env.DEV) {
-      console.error('API Error:', status ?? 'NETWORK', err.response?.data ?? err.message)
-    }
-    return Promise.reject(err)
-  },
-)
+    return config
+  })
+
+  instance.interceptors.response.use(
+    (res) => {
+      // El MS de RRHH envuelve toda respuesta en { ok, message, data }. Desenvolvemos
+      // para que los consumidores reciban el payload crudo (array/objeto) como esperan.
+      if (opts.unwrapEnvelope) {
+        const d: unknown = res.data
+        if (d !== null && typeof d === 'object' && 'ok' in d && 'data' in d) {
+          res.data = (d as { data: unknown }).data
+        }
+      }
+      return res
+    },
+    (err: AxiosError) => {
+      const status = err.response?.status
+      const isNetwork = !err.response
+      const is5xx = status !== undefined && status >= 500
+      // Toast genérico solo para errores que las mutaciones no esperan manejar:
+      // red caída o 5xx. Los 4xx llegan al onError del componente con su mensaje específico.
+      if (isNetwork || is5xx) {
+        toast.error(extractApiErrorMessage(err))
+      }
+      // Sesión inválida/expirada/revocada: limpia el token y manda a /login.
+      // Solo si había token (un 401 del propio login lleva token nulo) y no estamos ya en /login.
+      if (
+        status === 401 &&
+        getToken() &&
+        typeof window !== 'undefined' &&
+        window.location.pathname !== '/login'
+      ) {
+        clearAuth()
+        window.location.assign('/login')
+      }
+      if (import.meta.env.DEV) {
+        console.error('API Error:', status ?? 'NETWORK', err.response?.data ?? err.message)
+      }
+      return Promise.reject(err)
+    },
+  )
+}
+
+// Instancia base del gateway. Úsala para servicios que cuelgan directo de /api/v2
+// (p.ej. auth → /auth/...). El gateway rutea por prefijo de servicio.
+export const api = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'Content-Type': 'application/json' },
+})
+attachInterceptors(api)
+
+// Instancia para el MS de Recursos Humanos. El gateway rutea /api/v2/rrhh → MS rrhh
+// (que tiene prefijo global /rrhh). Los módulos de RRHH usan esta instancia y mantienen
+// sus paths relativos (/empleados, /turnos, …) → /api/v2/rrhh/empleados, etc.
+export const rrhhApi = axios.create({
+  baseURL: `${BASE_URL}/rrhh`,
+  headers: { 'Content-Type': 'application/json' },
+})
+attachInterceptors(rrhhApi, { unwrapEnvelope: true })
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'

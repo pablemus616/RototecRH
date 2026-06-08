@@ -1,0 +1,62 @@
+<h2>Alta de Empleado — Stepper dinámico</h2>
+<p class="subtitle">Flujo propuesto. Primero cerramos 4 decisiones de arquitectura en la terminal; luego diseñamos el look de cada paso aquí.</p>
+
+<style>
+  .flow { display:flex; flex-wrap:wrap; gap:10px; align-items:stretch; }
+  .chip { flex:1 1 0; min-width:120px; border:1px solid rgba(128,128,128,.35); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; background:rgba(128,128,128,.06); }
+  .chip .num { width:24px; height:24px; border-radius:50%; background:rgba(128,128,128,.22); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+  .chip .t { font-weight:600; font-size:14px; }
+  .chip .d { font-size:12px; opacity:.7; }
+  .chip.dyn { border-style:dashed; }
+  .chip.done { border-color:rgba(34,197,94,.6); background:rgba(34,197,94,.10); }
+  .arrow { align-self:center; opacity:.45; font-size:18px; }
+  .legend { font-size:12px; opacity:.7; margin-top:6px; }
+</style>
+
+<div class="section">
+  <div class="label">Cascada organizacional — dropdowns dependientes (del API)</div>
+  <div class="flow">
+    <div class="chip dyn"><div class="num">1</div><div class="t">País</div><div class="d">/company/paises</div></div>
+    <div class="arrow">→</div>
+    <div class="chip dyn"><div class="num">2</div><div class="t">Empresa</div><div class="d">/company/empresas</div></div>
+    <div class="arrow">→</div>
+    <div class="chip dyn"><div class="num">3</div><div class="t">Departamento</div><div class="d">/departamentos/:empresaId</div></div>
+    <div class="arrow">→</div>
+    <div class="chip dyn"><div class="num">4</div><div class="t">Sub-departamento</div><div class="d">/sub-departamentos/:deptoId</div></div>
+    <div class="arrow">→</div>
+    <div class="chip dyn"><div class="num">5</div><div class="t">Puesto</div><div class="d">/puestos/:subDeptoId</div></div>
+  </div>
+  <div class="legend">Cada selección habilita y carga el siguiente dropdown. No se avanza si el requerido está vacío/ inválido.</div>
+</div>
+
+<div class="section">
+  <div class="label">Datos del empleado</div>
+  <div class="flow">
+    <div class="chip"><div class="num">6</div><div class="t">Datos del empleado</div><div class="d">Personales · documentos · contrato · banco (validación por step)</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Configuración del biométrico (Biotime)</div>
+  <div class="flow">
+    <div class="chip dyn"><div class="num">7</div><div class="t">Config. biométrico</div><div class="d">departamento_biotime + ubicacion_biometrico (del biotime controller)</div></div>
+    <div class="arrow">→</div>
+    <div class="chip done"><div class="num">✓</div><div class="t">Crear empleado</div><div class="d">POST /rrhh/empleados</div></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Resultado</div>
+  <div class="mockup">
+    <div class="mockup-header">Dialog de éxito</div>
+    <div class="mockup-body" style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-weight:600">Empleado creado ✓</div>
+      <div style="font-size:13px;opacity:.8">ID 1042 · Juan Carlos Pérez · Operario de Máquina · Producción</div>
+      <div style="border:1px dashed rgba(128,128,128,.5); border-radius:8px; padding:10px; display:flex; align-items:center; justify-content:space-between; gap:10px">
+        <div><div style="font-size:11px; text-transform:uppercase; opacity:.6">Código Biotime</div><div style="font-weight:700; font-size:20px; letter-spacing:1px">BIO-000137</div></div>
+        <button class="mock-button">Copiar</button>
+      </div>
+      <div style="font-size:12px; opacity:.7">⚠️ Hay que copiar el código para poder cerrar el diálogo (se registra en el biométrico).</div>
+    </div>
+  </div>
+</div>

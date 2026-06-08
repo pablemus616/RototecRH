@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarDays, ChevronRight, Upload } from 'lucide-react'
+import { CalendarDays, ChevronRight, Clock, Search, Upload } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -13,9 +14,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  VerificacionResumen,
+  VerificacionTable,
+} from '@/components/asistencias/verificacion'
 import { useEmpleadosList } from '@/hooks/useEmpleados'
 import { useAsignacionesTurnoAll, useTurnosList } from '@/hooks/useTurnos'
-import { useAsistenciasPeriodo } from '@/hooks/useAsistencias'
+import { useAsistenciasPeriodo, useVerificacionAsistencias } from '@/hooks/useAsistencias'
 import { useAusenciasPeriodo } from '@/hooks/useAusencias'
 import {
   quincenaDeHoy,
@@ -39,6 +45,10 @@ export default function AsistenciasListPage() {
   const [year, setYear] = useState<number>(hoy.year)
   const [monthIndex, setMonthIndex] = useState<number>(hoy.monthIndex)
   const [quincena, setQuincena] = useState<Quincena>(hoy.num)
+  const [tab, setTab] = useState<'resumen' | 'verificacion'>('resumen')
+  const [tipoFiltro, setTipoFiltro] = useState<'TODOS' | 'acabados' | 'produccion'>('TODOS')
+  const [soloNovedades, setSoloNovedades] = useState(false)
+  const [texto, setTexto] = useState('')
 
   const rango = useMemo(
     () => rangoQuincena(year, monthIndex, quincena),
@@ -53,6 +63,7 @@ export default function AsistenciasListPage() {
     rango.hasta,
   )
   const { data: ausencias } = useAusenciasPeriodo(rango.desde, rango.hasta)
+  const verifQ = useVerificacionAsistencias(rango.desde, rango.hasta)
 
   const empleadosActivos = useMemo(
     () => (empleados ?? []).filter((e) => e.estado === 'ACTIVO'),
@@ -79,6 +90,21 @@ export default function AsistenciasListPage() {
 
   const years = [year - 1, year, year + 1]
   const cargando = loadingEmp || loadingReg
+
+  const verifBase = useMemo(() => {
+    let r = verifQ.data ?? []
+    if (tipoFiltro !== 'TODOS') r = r.filter((x) => x.tipo === tipoFiltro)
+    const q = texto.trim().toLowerCase()
+    if (q) r = r.filter((x) => x.nombre.toLowerCase().includes(q))
+    return r
+  }, [verifQ.data, tipoFiltro, texto])
+  const verifMostrados = useMemo(
+    () =>
+      soloNovedades
+        ? verifBase.filter((x) => x.llegoTarde || x.salioTemprano)
+        : verifBase,
+    [verifBase, soloNovedades],
+  )
 
   return (
     <div className="space-y-4">
@@ -155,7 +181,14 @@ export default function AsistenciasListPage() {
         </div>
       </Card>
 
-      {cargando ? (
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'resumen' | 'verificacion')}>
+        <TabsList>
+          <TabsTrigger value="resumen">Resumen</TabsTrigger>
+          <TabsTrigger value="verificacion">Verificación</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="resumen" className="mt-3">
+          {cargando ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-32 w-full" />
@@ -210,7 +243,51 @@ export default function AsistenciasListPage() {
             )
           })}
         </div>
-      )}
+          )}
+        </TabsContent>
+
+        <TabsContent value="verificacion" className="mt-3 space-y-4">
+          <VerificacionResumen rows={verifBase} />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                placeholder="Buscar empleado"
+                className="w-64 pl-9"
+              />
+            </div>
+            <Select
+              value={tipoFiltro}
+              onValueChange={(v) =>
+                setTipoFiltro(v as 'TODOS' | 'acabados' | 'produccion')
+              }
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos los tipos</SelectItem>
+                <SelectItem value="acabados">Acabados</SelectItem>
+                <SelectItem value="produccion">Producción</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant={soloNovedades ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSoloNovedades((s) => !s)}
+            >
+              <Clock className="h-4 w-4" />
+              Solo con novedad
+            </Button>
+            <span className="ml-auto text-sm tabular-nums text-muted-foreground">
+              {verifMostrados.length} registros
+            </span>
+          </div>
+          <VerificacionTable rows={verifMostrados} isLoading={verifQ.isLoading} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import type {
   TurnoInput,
 } from '@/types'
 import { calcularHorasPlanificadas, umbralHorasExtras } from '@/lib/utils'
-import { api, USE_MOCK } from './client'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_TURNOS = 'rototec.turnos.v1'
 const STORAGE_ASIGNACIONES = 'rototec.asignaciones_turno.v1'

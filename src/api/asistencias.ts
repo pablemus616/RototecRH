@@ -1,6 +1,10 @@
-import type { RegistroAsistencia, RegistroAsistenciaInput } from '@/types'
+import type {
+  RegistroAsistencia,
+  RegistroAsistenciaInput,
+  VerificacionAsistencia,
+} from '@/types'
 import { calcularHorasTrabajadasDeMarcaje } from '@/lib/asistencias'
-import { api, USE_MOCK } from './client'
+import { rrhhApi as api, USE_MOCK } from './client'
 
 const STORAGE_KEY = 'rototec.asistencias.v1'
 
@@ -106,6 +110,13 @@ const mockApi = {
     )
     writeStore(all)
   },
+  async verificar(
+    _fechaInicial: string,
+    _fechaFinal: string,
+  ): Promise<VerificacionAsistencia[]> {
+    await delay()
+    return []
+  },
 }
 
 // ---------- Real API ----------
@@ -138,6 +149,17 @@ const realApi = {
   },
   async remove(empleadoId: string, fecha: string): Promise<void> {
     await api.delete(`/asistencias`, { params: { empleadoId, fecha } })
+  },
+  // GET /rrhh/asistencias/verificar?fechaInicial=YYYY-MM-DD&fechaFinal=YYYY-MM-DD
+  async verificar(
+    fechaInicial: string,
+    fechaFinal: string,
+  ): Promise<VerificacionAsistencia[]> {
+    const { data } = await api.get<VerificacionAsistencia[]>(
+      '/asistencias/verificar',
+      { params: { fechaInicial, fechaFinal } },
+    )
+    return data
   },
 }
 

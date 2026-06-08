@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Users,
   Clock,
@@ -6,16 +6,23 @@ import {
   CalendarX,
   FileSpreadsheet,
   Gift,
+  Network,
+  Calculator,
+  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
 
 const NAV = [
   { to: '/empleados', label: 'Empleados', icon: Users },
   { to: '/turnos', label: 'Turnos', icon: Clock },
   { to: '/asistencias', label: 'Asistencias', icon: CalendarCheck },
   { to: '/ausencias', label: 'Ausencias', icon: CalendarX },
+  { to: '/organizacion', label: 'Organización', icon: Network },
   { to: '/bonificaciones', label: 'Bonificaciones', icon: Gift },
   { to: '/planilla', label: 'Planilla', icon: FileSpreadsheet },
+  { to: '/horas-extra', label: 'Horas Extra', icon: Calculator },
 ]
 
 function getActiveLabel(pathname: string): string {
@@ -25,7 +32,16 @@ function getActiveLabel(pathname: string): string {
 
 export function AppShell() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const activeLabel = getActiveLabel(location.pathname)
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
+  }
+
+  const nombreCompleto = user ? `${user.nombre} ${user.apellido}`.trim() : ''
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-muted/30">
@@ -61,9 +77,26 @@ export function AppShell() {
             ))}
           </ul>
         </nav>
-        <div className="border-t p-4 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">v0.1.0</p>
-          <p>Plan HR Rototec</p>
+        <div className="border-t p-3">
+          <div className="flex items-center justify-between gap-2 px-1">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">
+                {user?.username ?? 'Usuario'}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {nombreCompleto || 'Rototec HR'}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </aside>
 

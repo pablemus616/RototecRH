@@ -7,12 +7,22 @@ const QK = {
     ['asistencias', 'periodo', desde, hasta] as const,
   empleadoPeriodo: (id: string, desde: string, hasta: string) =>
     ['asistencias', 'empleado', id, desde, hasta] as const,
+  verificacion: (desde: string, hasta: string) =>
+    ['asistencias', 'verificacion', desde, hasta] as const,
 }
 
 export function useAsistenciasPeriodo(desde: string, hasta: string) {
   return useQuery({
     queryKey: QK.periodo(desde, hasta),
     queryFn: () => asistenciasApi.listByPeriodo(desde, hasta),
+  })
+}
+
+// Verificación marcaje-vs-turno (acabados + producción) en un rango de fechas.
+export function useVerificacionAsistencias(fechaInicial: string, fechaFinal: string) {
+  return useQuery({
+    queryKey: QK.verificacion(fechaInicial, fechaFinal),
+    queryFn: () => asistenciasApi.verificar(fechaInicial, fechaFinal),
   })
 }
 

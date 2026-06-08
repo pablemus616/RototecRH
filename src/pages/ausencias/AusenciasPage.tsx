@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { EmpleadoCombobox } from '@/components/ui/employee-combobox'
 import {
   Select,
   SelectContent,
@@ -22,18 +23,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { REGLA_POR_TIPO } from '@/constants/ausencias'
-import { useEmpleadosList } from '@/hooks/useEmpleados'
+import { useEmpleadosBackendList } from '@/hooks/useEmpleados'
+import { useAusenciasPeriodoBackend, useEliminarAusencia, useTiposAusencia } from '@/hooks/useAusenciasBackend'
+import { useVerificacionAsistencias } from '@/hooks/useAsistencias'
+import { useAuth } from '@/hooks/useAuth'
+import { quincenaDeHoy, rangoQuincena, type Quincena } from '@/lib/ausencias'
+import { formatDate, nombreEmpleado } from '@/lib/utils'
+import type { AusenciaBackend, EmpleadoBackend } from '@/types'
 import {
-  useAtrasosPeriodo,
-  useAusenciasPeriodo,
-  useDeleteAtraso,
-  useDeleteAusencia,
-} from '@/hooks/useAusencias'
-import { minutosAHHMM, quincenaDeHoy, rangoQuincena, type Quincena } from '@/lib/ausencias'
-import { formatDate, nombreParaMostrar } from '@/lib/utils'
-import type { Atraso, Ausencia } from '@/types'
-import { AtrasoFormDialog } from './AtrasoFormDialog'
+  VerificacionResumen,
+  VerificacionTable,
+} from '@/components/asistencias/verificacion'
 import { AusenciaFormDialog } from './AusenciaFormDialog'
 
 const MESES = [
@@ -44,7 +44,7 @@ const MESES = [
 const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 function diaSemanaCorto(iso: string): string {
-  const d = new Date(iso + 'T00:00:00')
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00')
   if (Number.isNaN(d.getTime())) return ''
   return DIAS_SEMANA[d.getDay()]
 }
@@ -57,42 +57,66 @@ export default function AusenciasPage() {
   const [empleadoFiltro, setEmpleadoFiltro] = useState<string>('TODOS')
   const [tab, setTab] = useState<'ausencias' | 'atrasos'>('ausencias')
   const [ausenciaOpen, setAusenciaOpen] = useState(false)
-  const [atrasoOpen, setAtrasoOpen] = useState(false)
+  const [editando, setEditando] = useState<AusenciaBackend | null>(null)
 
   const rango = useMemo(
     () => rangoQuincena(year, monthIndex, quincena),
     [year, monthIndex, quincena],
   )
 
-  const { data: empleados } = useEmpleadosList()
-  const ausenciasQ = useAusenciasPeriodo(rango.desde, rango.hasta)
-  const atrasosQ = useAtrasosPeriodo(rango.desde, rango.hasta)
+  const { user } = useAuth()
+  const puedeEliminarAusencia = user?.rol === 1
+  const { data: empleados } = useEmpleadosBackendList()
+  const tiposQ = useTiposAusencia()
+  const ausenciasQ = useAusenciasPeriodoBackend(rango.desde, rango.hasta)
+  const verifQ = useVerificacionAsistencias(rango.desde, rango.hasta)
 
-  const empleadosById = useMemo(() => {
-    const m = new Map<string, NonNullable<typeof empleados>[number]>()
+  const empById = useMemo(() => {
+    const m = new Map<number, EmpleadoBackend>()
     for (const e of empleados ?? []) m.set(e.id, e)
     return m
   }, [empleados])
 
+  const tipoNombreById = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const t of tiposQ.data ?? []) m.set(t.id, t.nombre ?? `#${t.id}`)
+    return m
+  }, [tiposQ.data])
+
   const ausenciasFiltradas = useMemo(() => {
     const all = ausenciasQ.data ?? []
-    const f = empleadoFiltro === 'TODOS' ? all : all.filter((a) => a.empleadoId === empleadoFiltro)
-    return f.sort((a, b) => a.fecha.localeCompare(b.fecha))
+    const f = empleadoFiltro === 'TODOS' ? all : all.filter((a) => String(a.idEmpleado) === empleadoFiltro)
+    return [...f].sort((a, b) => a.fechaAusencia.localeCompare(b.fechaAusencia))
   }, [ausenciasQ.data, empleadoFiltro])
 
-  const atrasosFiltrados = useMemo(() => {
-    const all = atrasosQ.data ?? []
-    const f = empleadoFiltro === 'TODOS' ? all : all.filter((a) => a.empleadoId === empleadoFiltro)
-    return f.sort((a, b) => a.fecha.localeCompare(b.fecha))
-  }, [atrasosQ.data, empleadoFiltro])
+  // Atrasos detectados por el biométrico (llegó tarde o salió temprano), desde
+  // el endpoint de verificación de asistencias. Es de solo lectura (no manual).
+  const atrasosDetectados = useMemo(() => {
+    const all = (verifQ.data ?? []).filter((v) => v.llegoTarde || v.salioTemprano)
+    const f =
+      empleadoFiltro === 'TODOS'
+        ? all
+        : all.filter((v) => String(v.idEmpleado) === empleadoFiltro)
+    return [...f].sort((a, b) => a.fecha.localeCompare(b.fecha))
+  }, [verifQ.data, empleadoFiltro])
 
   const empleadosActivos = useMemo(() => {
     return (empleados ?? [])
-      .filter((e) => e.estado === 'ACTIVO')
-      .sort((a, b) => nombreParaMostrar(a).localeCompare(nombreParaMostrar(b)))
+      .filter((e) => e.estaActivo)
+      .map((e) => ({ id: e.id, nombre: nombreEmpleado(e) }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
   }, [empleados])
 
   const years = [year - 1, year, year + 1]
+
+  function abrirCrear() {
+    setEditando(null)
+    setAusenciaOpen(true)
+  }
+  function abrirEditar(a: AusenciaBackend) {
+    setEditando(a)
+    setAusenciaOpen(true)
+  }
 
   return (
     <div className="space-y-4">
@@ -100,53 +124,31 @@ export default function AusenciasPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Año
-              </label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Año</label>
               <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}
-                    </SelectItem>
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Mes
-              </label>
-              <Select
-                value={String(monthIndex)}
-                onValueChange={(v) => setMonthIndex(Number(v))}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Mes</label>
+              <Select value={String(monthIndex)} onValueChange={(v) => setMonthIndex(Number(v))}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MESES.map((m, i) => (
-                    <SelectItem key={m} value={String(i)}>
-                      {m}
-                    </SelectItem>
+                    <SelectItem key={m} value={String(i)}>{m}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Quincena
-              </label>
-              <Select
-                value={String(quincena)}
-                onValueChange={(v) => setQuincena(Number(v) as Quincena)}
-              >
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Quincena</label>
+              <Select value={String(quincena)} onValueChange={(v) => setQuincena(Number(v) as Quincena)}>
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">1ª (1–15)</SelectItem>
                   <SelectItem value="2">2ª (16–fin)</SelectItem>
@@ -154,29 +156,20 @@ export default function AusenciasPage() {
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Empleado
-              </label>
-              <Select value={empleadoFiltro} onValueChange={setEmpleadoFiltro}>
-                <SelectTrigger className="w-72">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS">Todos</SelectItem>
-                  {empleadosActivos.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {nombreParaMostrar(e)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Empleado</label>
+              <EmpleadoCombobox
+                className="w-72"
+                empleados={empleadosActivos}
+                value={empleadoFiltro === 'TODOS' ? null : Number(empleadoFiltro)}
+                onChange={(id) => setEmpleadoFiltro(id == null ? 'TODOS' : String(id))}
+                allowAll
+                allLabel="Todos"
+              />
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="h-4 w-4" />
-            <span className="tabular-nums">
-              {formatDate(rango.desde)} – {formatDate(rango.hasta)}
-            </span>
+            <span className="tabular-nums">{formatDate(rango.desde)} – {formatDate(rango.hasta)}</span>
           </div>
         </div>
       </Card>
@@ -185,28 +178,14 @@ export default function AusenciasPage() {
         <div className="flex items-center justify-between gap-3">
           <TabsList>
             <TabsTrigger value="ausencias">
-              Ausencias{' '}
-              <span className="ml-2 rounded bg-muted px-1.5 text-xs">
-                {ausenciasFiltradas.length}
-              </span>
+              Ausencias <span className="ml-2 rounded bg-muted px-1.5 text-xs">{ausenciasFiltradas.length}</span>
             </TabsTrigger>
             <TabsTrigger value="atrasos">
-              Atrasos{' '}
-              <span className="ml-2 rounded bg-muted px-1.5 text-xs">
-                {atrasosFiltrados.length}
-              </span>
+              Atrasos <span className="ml-2 rounded bg-muted px-1.5 text-xs">{atrasosDetectados.length}</span>
             </TabsTrigger>
           </TabsList>
-          {tab === 'ausencias' ? (
-            <Button onClick={() => setAusenciaOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Registrar ausencia
-            </Button>
-          ) : (
-            <Button onClick={() => setAtrasoOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Registrar atraso
-            </Button>
+          {tab === 'ausencias' && (
+            <Button onClick={abrirCrear}><Plus className="h-4 w-4" />Registrar ausencia</Button>
           )}
         </div>
 
@@ -223,7 +202,7 @@ export default function AusenciasPage() {
                   <TableHead className="text-right">Días desc.</TableHead>
                   <TableHead>Séptimo</TableHead>
                   <TableHead>IGSS</TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="w-24"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -240,11 +219,10 @@ export default function AusenciasPage() {
                     <AusenciaRow
                       key={a.id}
                       ausencia={a}
-                      nombre={
-                        empleadosById.get(a.empleadoId)
-                          ? nombreParaMostrar(empleadosById.get(a.empleadoId)!)
-                          : 'Empleado eliminado'
-                      }
+                      nombre={empById.get(a.idEmpleado) ? nombreEmpleado(empById.get(a.idEmpleado)!) : `#${a.idEmpleado}`}
+                      tipoNombre={tipoNombreById.get(a.tipoAusencia) ?? `#${a.tipoAusencia}`}
+                      onEdit={() => abrirEditar(a)}
+                      puedeEliminar={puedeEliminarAusencia}
                     />
                   ))
                 )}
@@ -253,51 +231,24 @@ export default function AusenciasPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="atrasos" className="mt-3">
-          <Card>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Día</TableHead>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Entrada</TableHead>
-                  <TableHead>Salida</TableHead>
-                  <TableHead>Turno</TableHead>
-                  <TableHead className="text-right">Retraso</TableHead>
-                  <TableHead className="w-20"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {atrasosQ.isLoading ? (
-                  <SkeletonRows colSpan={8} />
-                ) : atrasosFiltrados.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                      Sin atrasos en el período
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  atrasosFiltrados.map((a) => (
-                    <AtrasoRow
-                      key={a.id}
-                      atraso={a}
-                      nombre={
-                        empleadosById.get(a.empleadoId)
-                          ? nombreParaMostrar(empleadosById.get(a.empleadoId)!)
-                          : 'Empleado eliminado'
-                      }
-                    />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </Card>
+        <TabsContent value="atrasos" className="mt-3 space-y-4">
+          <VerificacionResumen rows={atrasosDetectados} modo="novedades" />
+          <VerificacionTable
+            rows={atrasosDetectados}
+            isLoading={verifQ.isLoading}
+            emptyText="Sin atrasos detectados en el período"
+          />
         </TabsContent>
       </Tabs>
 
-      <AusenciaFormDialog open={ausenciaOpen} onOpenChange={setAusenciaOpen} />
-      <AtrasoFormDialog open={atrasoOpen} onOpenChange={setAtrasoOpen} />
+      <AusenciaFormDialog
+        open={ausenciaOpen}
+        onOpenChange={(o) => {
+          setAusenciaOpen(o)
+          if (!o) setEditando(null)
+        }}
+        ausencia={editando}
+      />
     </div>
   )
 }
@@ -316,9 +267,20 @@ function SkeletonRows({ colSpan }: { colSpan: number }) {
   )
 }
 
-function AusenciaRow({ ausencia, nombre }: { ausencia: Ausencia; nombre: string }) {
-  const regla = REGLA_POR_TIPO.get(ausencia.tipoAusencia)
-  const eliminar = useDeleteAusencia()
+function AusenciaRow({
+  ausencia,
+  nombre,
+  tipoNombre,
+  onEdit,
+  puedeEliminar,
+}: {
+  ausencia: AusenciaBackend
+  nombre: string
+  tipoNombre: string
+  onEdit: () => void
+  puedeEliminar: boolean
+}) {
+  const eliminar = useEliminarAusencia()
 
   async function onDelete() {
     if (!confirm('¿Eliminar esta ausencia?')) return
@@ -326,19 +288,16 @@ function AusenciaRow({ ausencia, nombre }: { ausencia: Ausencia; nombre: string 
       await eliminar.mutateAsync(ausencia.id)
       toast.success('Ausencia eliminada')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error'
-      toast.error(msg)
+      toast.error(err instanceof Error ? err.message : 'Error')
     }
   }
 
   return (
     <TableRow>
-      <TableCell className="tabular-nums">{formatDate(ausencia.fecha)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {diaSemanaCorto(ausencia.fecha)}
-      </TableCell>
+      <TableCell className="tabular-nums">{formatDate(ausencia.fechaAusencia)}</TableCell>
+      <TableCell className="text-xs text-muted-foreground">{diaSemanaCorto(ausencia.fechaAusencia)}</TableCell>
       <TableCell className="font-medium">{nombre}</TableCell>
-      <TableCell>{regla?.label ?? ausencia.tipoAusencia}</TableCell>
+      <TableCell>{tipoNombre}</TableCell>
       <TableCell>
         {ausencia.presentoConstancia ? (
           <Badge variant="success">Sí</Badge>
@@ -346,9 +305,7 @@ function AusenciaRow({ ausencia, nombre }: { ausencia: Ausencia; nombre: string 
           <span className="text-xs text-muted-foreground">No</span>
         )}
       </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {ausencia.diasDescontados}
-      </TableCell>
+      <TableCell className="text-right tabular-nums">{ausencia.diasDescontados}</TableCell>
       <TableCell>
         {ausencia.descontarSeptimo ? (
           <Badge variant="warning">Sí</Badge>
@@ -364,47 +321,14 @@ function AusenciaRow({ ausencia, nombre }: { ausencia: Ausencia; nombre: string 
         )}
       </TableCell>
       <TableCell className="text-right">
-        <Button variant="ghost" size="sm" onClick={onDelete} disabled={eliminar.isPending}>
-          <Trash2 className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={onEdit}>
+          <Pencil className="h-4 w-4" />
         </Button>
-      </TableCell>
-    </TableRow>
-  )
-}
-
-function AtrasoRow({ atraso, nombre }: { atraso: Atraso; nombre: string }) {
-  const eliminar = useDeleteAtraso()
-
-  async function onDelete() {
-    if (!confirm('¿Eliminar este atraso?')) return
-    try {
-      await eliminar.mutateAsync(atraso.id)
-      toast.success('Atraso eliminado')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error'
-      toast.error(msg)
-    }
-  }
-
-  return (
-    <TableRow>
-      <TableCell className="tabular-nums">{formatDate(atraso.fecha)}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {diaSemanaCorto(atraso.fecha)}
-      </TableCell>
-      <TableCell className="font-medium">{nombre}</TableCell>
-      <TableCell className="tabular-nums">{atraso.horaEntradaReal}</TableCell>
-      <TableCell className="tabular-nums">{atraso.horaSalidaReal}</TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {atraso.turnoDescripcion ?? '—'}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {minutosAHHMM(atraso.minutosRetraso)}
-      </TableCell>
-      <TableCell className="text-right">
-        <Button variant="ghost" size="sm" onClick={onDelete} disabled={eliminar.isPending}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {puedeEliminar && (
+          <Button variant="ghost" size="sm" onClick={onDelete} disabled={eliminar.isPending}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </TableCell>
     </TableRow>
   )

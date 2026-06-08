@@ -26,6 +26,9 @@ export interface Empleado {
   primerApellido: string
   segundoApellido?: string
   apellidoCasada?: string
+  // Columnas legacy del backend; respaldo para mostrar el nombre si faltan las partes estructuradas.
+  nombre?: string
+  apellido?: string
   tipoDocumento: TipoDocumentoType
   dpi: string
   nit: string
@@ -47,6 +50,11 @@ export interface Empleado {
   // Datos Laborales
   puesto: string
   departamento: DepartamentoRototecType
+  // Árbol organizacional real (Fase C). Opcionales mientras el form migra a la cascada.
+  empresaId?: number
+  idDepartamento?: number
+  idSubDepartamento?: number
+  idPuesto?: number
   jornada: JornadaType
   temporalidadContrato: TemporalidadContratoType
   tipoContrato: TipoContratoType
@@ -207,6 +215,88 @@ export type RegistroAsistenciaInput = Omit<
   'id' | 'horasTrabajadas' | 'horasComida' | 'fechaCreacion'
 >
 
+// Verificación de asistencias: marcaje del biométrico vs. turno programado.
+// Lo devuelve el MS de RRHH (GET /rrhh/asistencias/verificar). El recorte ya
+// viene aplicado: horaEntrada/horaSalida son las horas "efectivas" (la real si
+// se penaliza, la del turno si no), y horaEntradaReal es la marca cruda.
+export type TipoTurnoVerificacion = 'acabados' | 'produccion'
+
+export interface VerificacionAsistencia {
+  idEmpleado: number
+  nombre: string
+  fecha: string                          // YYYY-MM-DD
+  horaEntradaProgramada: string | null   // HH:mm — HoraInicio del turno
+  horaEntradaReal: string | null         // HH:mm — marca real de entrada (sin recorte)
+  horaEntrada: string | null             // HH:mm — efectiva (recortada al turno)
+  horaSalidaProgramada: string | null    // HH:mm — HoraFin del turno
+  horaSalida: string | null              // HH:mm — efectiva (recortada al turno)
+  llegoTarde: boolean
+  salioTemprano: boolean
+  tipo: TipoTurnoVerificacion            // origen del turno
+}
+
+// Horas extra calculadas por el motor (réplica del Machote) — GET /rrhh/horas-extra/calcular.
+export interface HorasExtraPeriodo {
+  periodo: string                        // "AAAA-MM-Qui" (ej "2026-05-Qui1")
+  dia: number                            // horas extra diurnas a pagar
+  noche: number                          // horas extra nocturnas a pagar
+  horasEfectivas: number                 // total de horas efectivas trabajadas
+  ordinarias: number                     // horas ordinarias que correspondían
+  excedente: number                      // efectivas − ordinarias (negativo = deben horas)
+  sistemas: string[]                     // sistema(s) de turno usados (ej "0-5-2")
+}
+
+export interface HorasExtraEmpleado {
+  idEmpleado: number
+  nombre?: string
+  periodos: HorasExtraPeriodo[]
+}
+
+// Desglose por semana de la quincena — GET /rrhh/horas-extra/desglose.
+// Réplica de las filas semanales del Resumen del Machote (cols H-W, sin multiplicador).
+export interface DesgloseSemanaHE {
+  periodo: string                        // AAAA-MM-Qui
+  semana: number                         // semana ISO (col K)
+  tipoQuincena: 'completa' | 'dividida'  // col L
+  diasEnQuincena: number
+  horasEfectivas: number                 // col N
+  ordinariasCompleta: number             // col O
+  ordinariasDividida: number             // col P
+  ordinariasTotal: number                // col Q
+  excedente: number                      // col R (pisado en 0)
+  sistema: string                        // col S
+  propDia: number                        // col T
+  propNoche: number                      // col U
+  saldoDia: number                       // col V (= propDia × excedente)
+  saldoNoche: number                     // col W (= propNoche × excedente)
+}
+
+// Detalle día a día de un empleado — GET /rrhh/horas-extra/detalle.
+export interface DetalleDiaHE {
+  fecha: string                          // YYYY-MM-DD
+  tipo: string                           // DIA | NOCHE | DESCANSO | ASUETO-D | ASUETO-N
+  ingreso: string                        // HH:mm:ss — ingreso oficial (validado)
+  egreso: string                         // HH:mm:ss — egreso oficial
+  efectivas: number                      // horas efectivas del día
+  semana: number                         // semana ISO
+  sistema: string                        // sistema de la semana (ej "0-5-2")
+  periodo: string                        // AAAA-MM-Qui
+  turnoIngreso: string | null            // programado
+  turnoSalida: string | null
+  marcaIngreso: string | null            // biométrico
+  marcaSalida: string | null
+  entradaDeltaMin: number | null         // marca − turno (entrada): + tarde, − antes
+  salidaDeltaMin: number | null          // marca − turno (salida): + se quedó, − salió antes (solo diurna)
+  entradaTarde: boolean                  // entró después del turno
+  entradaAntes: boolean                  // entró bastante antes del turno
+  salidaTarde: boolean                   // se fue después del fin de turno (solo diurna)
+  salidaTemprano: boolean                // se fue antes del fin de turno (solo diurna)
+  faltaMarca: boolean                    // día trabajado sin marca de entrada/salida
+  marcaSinTurno: boolean                 // hubo marca pero no había turno programado
+  marcaFueraDeTurno: boolean             // marca de entrada posterior al fin de un turno diurno
+  inconsistente: boolean                 // hay alguna discrepancia que amerita revisión
+}
+
 // Resumen semanal (lunes-domingo) por empleado.
 export interface ResumenSemanal {
   empleadoId: string
@@ -357,3 +447,178 @@ export interface BonificacionBatchInput {
   monto: number
   descripcion?: string
 }
+
+// =====================================================
+// ALTA DE EMPLEADO — contrato backend /rrhh (snake_case)
+// =====================================================
+
+/** Item genérico de catálogo de la cascada (company). Ajustar si el SP devuelve otras columnas. */
+export interface CatalogoItem {
+  id: number
+  nombre: string
+}
+
+/** País del catálogo company (Id numérico para filtrar empresas + código keyName + nombre). */
+export interface PaisItem {
+  id: number
+  codigo: string
+  nombre: string
+}
+
+/** Item de catálogo de Biotime (departamento o área). */
+export interface BiotimeItem {
+  id: number
+  nombre: string
+}
+
+/** Body de POST /rrhh/empleados — espejo de CreateEmployeeDto. */
+export interface CreateEmpleadoInput {
+  // cascada organizacional
+  PAIS: string
+  empresa_id: number
+  id_departamento: number
+  id_sub_departamento: number
+  id_puesto: number
+  // personales / documentos
+  primer_nombre: string
+  segundo_nombre?: string
+  tercer_nombre?: string
+  primer_apellido: string
+  segundo_apellido?: string
+  apellido_casada?: string
+  numero_identificacion_nacional: string
+  id_tributario: string
+  id_seguro_social: string
+  fecha_nacimiento: string
+  sexo: string
+  estado_civil: string
+  cantidad_hijos: number
+  tipo_discapacidad: string
+  telefono?: string
+  correo?: string
+  direccion?: string
+  pasaporte?: string
+  // culturales (MINTRAB)
+  pueblo_pertenencia: string
+  comunidad_linguistica: string
+  grupo_etnico?: string
+  lugar_nacimiento_municipio?: string
+  permiso_extranjero?: string
+  // contrato / pago
+  jornada: string
+  temporalidad_contrato: string
+  tipo_contrato: string
+  fecha_contratacion: string
+  fecha_reingreso?: string
+  salario_base_contrato: number
+  profesion?: string
+  titulo?: string
+  forma_pago: string
+  codigo_banco?: string
+  numero_cuenta?: string
+  tipo_cuenta?: string
+  // biométrico
+  departamento_biotime: number
+  ubicacion_biometrico: number
+}
+
+/** Respuesta de POST /rrhh/empleados — entidad creada (camelCase del backend). */
+export interface CreateEmpleadoResponse {
+  id: number
+  codigoEmpleadoBio: number | null
+}
+
+/** Empleado tal como lo devuelve el backend real (GET /rrhh/empleados), camelCase. */
+export interface EmpleadoBackend {
+  id: number
+  nombre: string | null
+  apellido: string | null
+  telefono: string | null
+  correo: string | null
+  pais: string | null
+  empresaId: number | null
+  idDepartamento: number | null
+  idSubDepartamento: number | null
+  idPuesto: number | null
+  codigoEmpleadoBio: number | null
+  primerNombre: string | null
+  segundoNombre: string | null
+  tercerNombre: string | null
+  primerApellido: string | null
+  segundoApellido: string | null
+  apellidoCasada: string | null
+  estadoCivil: string | null
+  sexo: string | null
+  profesion: string | null
+  titulo: string | null
+  direccion: string | null
+  fechaNacimiento: string | null
+  fechaContratacion: string | null
+  fechaReingreso: string | null
+  estaActivo: boolean
+  salarioBaseContrato: number | null
+  bonificacionDecretoBaseContrato: number | null
+  cantidadHijos: number | null
+  jornada: string | null
+  temporalidadContrato: string | null
+  tipoContrato: string | null
+  formaPago: string | null
+  codigoBanco: string | null
+  numeroCuenta: string | null
+  tipoCuenta: string | null
+  idTributario: string | null
+  idSeguroSocial: string | null
+  numeroIdentificacionNacional: string | null
+  tipoDiscapacidad: string | null
+  puebloPertenencia: string | null
+  comunidadLinguistica: string | null
+  grupoEtnico: string | null
+  lugarNacimientoMunicipio: string | null
+  permisoExtranjero: string | null
+  pasaporte: string | null
+  tipoBaja: string | null
+  fechaBaja: string | null
+  motivoBaja: string | null
+}
+
+// ───────── Ausencias (contrato backend /rrhh, modelo enriquecido) ─────────
+
+/** Tipo de ausencia del catálogo (con sus reglas). GET /rrhh/ausencias/tipos */
+export interface TipoAusenciaCatalogo {
+  id: number
+  nombre: string | null
+  codigo: string | null
+  descripcion: string | null
+  medidaDefault: string | null
+  diasDescontar: number
+  descontarSeptimo: boolean
+  pagaIGSS: boolean
+  requiereConstancia: boolean
+}
+
+/** Ausencia tal como la devuelve el backend (camelCase de la entidad). */
+export interface AusenciaBackend {
+  id: number
+  tipoAusencia: number
+  idEmpleado: number
+  fechaAusencia: string
+  fechaSolicitudPermiso: string | null
+  comentarios: string | null
+  medidaDisciplinaria: string | null
+  presentoConstancia: boolean
+  diasDescontados: number
+  descontarSeptimo: boolean
+  pagaIGSS: boolean
+  fechaCreacion: string | null
+}
+
+export interface CreateAusenciaInput {
+  tipoAusencia: number
+  idEmpleado: number
+  fechaAusencia: string
+  fechaSolicitudPermiso?: string
+  presentoConstancia?: boolean
+  comentarios?: string
+}
+
+export type UpdateAusenciaInput = Partial<Omit<CreateAusenciaInput, 'idEmpleado'>>
