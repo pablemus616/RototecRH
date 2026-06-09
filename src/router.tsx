@@ -13,6 +13,7 @@ import OrganizacionPage from '@/pages/organizacion/OrganizacionPage'
 import BonificacionesPage from '@/pages/bonificaciones/BonificacionesPage'
 import PlanillaPage from '@/pages/planilla/PlanillaPage'
 import HorasExtraPage from '@/pages/horas-extra/HorasExtraPage'
+import CargaTurnosPage from '@/pages/carga-turnos/CargaTurnosPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
           { path: 'bonificaciones', element: <BonificacionesPage /> },
           { path: 'planilla', element: <PlanillaPage /> },
           { path: 'horas-extra', element: <HorasExtraPage /> },
+          { path: 'carga-turnos', element: <CargaTurnosPage /> },
           { path: '*', element: <Navigate to="/empleados" replace /> },
         ],
       },

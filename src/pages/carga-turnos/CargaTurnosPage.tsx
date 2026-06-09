@@ -1,0 +1,183 @@
+import { useRef, useState } from 'react'
+import { AlertTriangle, Check, Download, Loader2, Upload } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+import { cargaTurnosApi } from '@/api/cargaTurnos'
+import type { PreviewTurnos } from '@/types'
+
+function rango(a: string | null, b: string | null): string {
+  const f = (h: string | null) => (h ? h.slice(0, 5) : '—')
+  return a || b ? `${f(a)}–${f(b)}` : '—'
+}
+
+export default function CargaTurnosPage() {
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const [area, setArea] = useState<1 | 2>(2)
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const [preview, setPreview] = useState<PreviewTurnos | null>(null)
+  const [cargando, setCargando] = useState(false)
+  const [aplicando, setAplicando] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const rangoOk = Boolean(desde && hasta && desde <= hasta)
+
+  const descargar = async () => {
+    const blob = await cargaTurnosApi.descargarPlantilla(desde, hasta, area)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `plantilla_turnos_${area === 1 ? 'acabados' : 'maquinas'}_${desde}_a_${hasta}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const onArchivo = async (f: File) => {
+    setArchivo(f)
+    setCargando(true)
+    setPreview(null)
+    try {
+      setPreview(await cargaTurnosApi.preview(f, desde, hasta, area))
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  const aplicar = async () => {
+    if (!archivo) return
+    setAplicando(true)
+    try {
+      const r = await cargaTurnosApi.aplicar(archivo, desde, hasta, area)
+      alert(`Aplicado: acabados ${r.acabados}, máquinas ${r.maquinas}, avisos ${r.avisos}`)
+      setPreview(null)
+      setArchivo(null)
+      if (fileRef.current) fileRef.current.value = ''
+    } finally {
+      setAplicando(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-teal-500/20 to-violet-500/20 p-2.5 ring-1 ring-border">
+          <Upload className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold leading-none tracking-tight">Carga de turnos</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Genera la plantilla, llénala y súbela · el sistema se infiere de los días</p>
+        </div>
+      </div>
+
+      <Card className="p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Desde</label>
+            <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-9 w-40" />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Hasta</label>
+            <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-40" />
+          </div>
+          <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+            <button
+              type="button"
+              onClick={() => setArea(1)}
+              className={cn('h-7 rounded-md px-3 text-xs font-medium', area === 1 ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground')}
+            >
+              Acabados
+            </button>
+            <button
+              type="button"
+              onClick={() => setArea(2)}
+              className={cn('h-7 rounded-md px-3 text-xs font-medium', area === 2 ? 'bg-teal-600 text-white shadow-sm' : 'text-muted-foreground')}
+            >
+              Máquinas
+            </button>
+          </div>
+          <Button onClick={descargar} disabled={!rangoOk} variant="outline" className="h-9 gap-2">
+            <Download className="h-4 w-4" /> Descargar plantilla
+          </Button>
+          <Button onClick={() => fileRef.current?.click()} disabled={!rangoOk || cargando} className="h-9 gap-2">
+            {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {cargando ? 'Leyendo…' : 'Subir Excel'}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && onArchivo(e.target.files[0])}
+          />
+        </div>
+      </Card>
+
+      {preview && (
+        <Card>
+          <div className="flex items-center justify-between gap-3 border-b p-3 text-sm">
+            <div className="flex items-center gap-3">
+              <span className={cn('inline-flex items-center gap-1', preview.totalErrores > 0 ? 'text-rose-600 font-semibold' : 'text-emerald-600')}>
+                {preview.totalErrores > 0 ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                {preview.totalErrores} errores
+              </span>
+              <span className="text-amber-600">{preview.totalAvisos} avisos</span>
+              <span className="text-muted-foreground">{preview.filas.length} filas</span>
+            </div>
+            <Button onClick={aplicar} disabled={preview.totalErrores > 0 || aplicando} className="h-8 gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
+              {aplicando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {aplicando ? 'Aplicando…' : 'Aplicar'}
+            </Button>
+          </div>
+          <div className="max-h-[62vh] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Empleado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Horario</TableHead>
+                  <TableHead>Equipo</TableHead>
+                  <TableHead>Sistema</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {preview.filas.map((f, i) => (
+                  <TableRow key={i} className={cn(f.errores.length && 'bg-rose-50', !f.errores.length && f.avisos.length && 'bg-amber-50')}>
+                    <TableCell className="tabular-nums">#{f.idEmpleado}</TableCell>
+                    <TableCell className="text-xs tabular-nums">{f.fecha}</TableCell>
+                    <TableCell className="text-xs">{f.tipo}</TableCell>
+                    <TableCell className="text-xs tabular-nums">{rango(f.horaInicio, f.horaFin)}</TableCell>
+                    <TableCell className="text-xs tabular-nums">{f.equipo ?? '—'}</TableCell>
+                    <TableCell className="text-xs tabular-nums">{f.sistema ?? '—'}</TableCell>
+                    <TableCell className="text-xs">
+                      {f.errores[0] ? (
+                        <span className="text-rose-700">{f.errores[0]}</span>
+                      ) : f.avisos[0] ? (
+                        <span className="text-amber-700">{f.avisos[0]}</span>
+                      ) : (
+                        <span className="text-muted-foreground">OK</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}

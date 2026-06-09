@@ -246,10 +246,47 @@ export interface HorasExtraPeriodo {
   sistemas: string[]                     // sistema(s) de turno usados (ej "0-5-2")
 }
 
+export type FuenteTurno = 'ACABADOS' | 'MAQUINAS'
+
 export interface HorasExtraEmpleado {
   idEmpleado: number
   nombre?: string
+  fuente?: FuenteTurno                    // acabados (tTurnosAcabados) | máquinas (tTurnosProduccionDetalle)
   periodos: HorasExtraPeriodo[]
+}
+
+// Empleado excluido del cálculo — GET /rrhh/horas-extra/excluidos.
+export interface ExcluidoHE {
+  idEmpleado: number
+  nombre?: string
+  fuente?: FuenteTurno
+  razon: 'NO_MARCO'                       // tenía turno programado pero no marcó (no vino)
+  diasProgramados: number                // días con turno en el rango pedido
+}
+
+// ===== Carga masiva de turnos (programacion-turnos) =====
+export interface EmpleadoElegible {
+  id: number
+  codigo: number | null
+  nombre: string                         // "Apellidos - Nombres"
+  idPuesto: number
+  cuadrilla: number | null
+}
+export interface PreviewFilaTurno {
+  idEmpleado: number
+  fecha: string
+  tipo: string                           // DIA | NOCHE | DESCANSO | ASUETO
+  horaInicio: string | null
+  horaFin: string | null
+  equipo: number | null
+  sistema: string | null
+  errores: string[]
+  avisos: string[]
+}
+export interface PreviewTurnos {
+  filas: PreviewFilaTurno[]
+  totalErrores: number
+  totalAvisos: number
 }
 
 // Desglose por semana de la quincena — GET /rrhh/horas-extra/desglose.
@@ -274,7 +311,7 @@ export interface DesgloseSemanaHE {
 // Detalle día a día de un empleado — GET /rrhh/horas-extra/detalle.
 export interface DetalleDiaHE {
   fecha: string                          // YYYY-MM-DD
-  tipo: string                           // DIA | NOCHE | DESCANSO | ASUETO-D | ASUETO-N
+  tipo: string                           // DIA | NOCHE | DESCANSO | ASUETO-D | ASUETO-N | AUSENTE (turno sin marca)
   ingreso: string                        // HH:mm:ss — ingreso oficial (validado)
   egreso: string                         // HH:mm:ss — egreso oficial
   efectivas: number                      // horas efectivas del día
@@ -295,6 +332,14 @@ export interface DetalleDiaHE {
   marcaSinTurno: boolean                 // hubo marca pero no había turno programado
   marcaFueraDeTurno: boolean             // marca de entrada posterior al fin de un turno diurno
   inconsistente: boolean                 // hay alguna discrepancia que amerita revisión
+}
+
+// Detalle día a día de un empleado, agrupado — GET /rrhh/horas-extra/detalle-todos (para el export).
+export interface DetalleEmpleadoHE {
+  idEmpleado: number
+  nombre?: string
+  fuente?: FuenteTurno
+  dias: DetalleDiaHE[]
 }
 
 // Resumen semanal (lunes-domingo) por empleado.
