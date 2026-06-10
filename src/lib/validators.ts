@@ -355,7 +355,7 @@ export const empleadoCreateSchema = z
     tipo_cuenta: z.string().optional().or(z.literal('')),
     // biométrico
     departamento_biotime: reqId,
-    ubicacion_biometrico: reqId,que
+    ubicacion_biometrico: reqId,
   })
   .superRefine((data, ctx) => {
     // Formato estricto de documentos solo para Guatemala (otros países: solo requerido).
