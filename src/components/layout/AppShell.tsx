@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Users,
   Clock,
+  FileUp,
   CalendarCheck,
   CalendarX,
   FileSpreadsheet,
@@ -17,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth'
 const NAV = [
   { to: '/empleados', label: 'Empleados', icon: Users },
   { to: '/turnos', label: 'Turnos', icon: Clock },
+  { to: '/carga-turnos', label: 'Carga de turnos', icon: FileUp },
   { to: '/asistencias', label: 'Asistencias', icon: CalendarCheck },
   { to: '/ausencias', label: 'Ausencias', icon: CalendarX },
   { to: '/organizacion', label: 'Organización', icon: Network },
