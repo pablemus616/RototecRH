@@ -1,7 +1,14 @@
 import { useRef, useState } from 'react'
-import { AlertTriangle, Check, Download, Loader2, Upload } from 'lucide-react'
+import { AlertTriangle, Check, Download, Loader2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -28,9 +35,11 @@ export default function CargaTurnosPage() {
   const [preview, setPreview] = useState<PreviewTurnos | null>(null)
   const [cargando, setCargando] = useState(false)
   const [aplicando, setAplicando] = useState(false)
+  const [resultado, setResultado] = useState<{ acabados: number; maquinas: number; avisos: number } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const rangoOk = Boolean(desde && hasta && desde <= hasta)
+  const areaTxt = area === 1 ? 'Acabados' : 'Máquinas'
 
   const descargar = async () => {
     const blob = await cargaTurnosApi.descargarPlantilla(desde, hasta, area)
@@ -44,10 +53,17 @@ export default function CargaTurnosPage() {
     URL.revokeObjectURL(url)
   }
 
+  const limpiar = () => {
+    setPreview(null)
+    setArchivo(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const onArchivo = async (f: File) => {
     setArchivo(f)
     setCargando(true)
     setPreview(null)
+    setResultado(null)
     try {
       setPreview(await cargaTurnosApi.preview(f, desde, hasta, area))
     } finally {
@@ -60,10 +76,8 @@ export default function CargaTurnosPage() {
     setAplicando(true)
     try {
       const r = await cargaTurnosApi.aplicar(archivo, desde, hasta, area)
-      alert(`Aplicado: acabados ${r.acabados}, máquinas ${r.maquinas}, avisos ${r.avisos}`)
-      setPreview(null)
-      setArchivo(null)
-      if (fileRef.current) fileRef.current.value = ''
+      setResultado(r)
+      limpiar()
     } finally {
       setAplicando(false)
     }
@@ -122,62 +136,97 @@ export default function CargaTurnosPage() {
             onChange={(e) => e.target.files?.[0] && onArchivo(e.target.files[0])}
           />
         </div>
+        {resultado && (
+          <div className="mt-3 flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <Check className="h-4 w-4" />
+            Aplicado: <b>{resultado.acabados}</b> acabados · <b>{resultado.maquinas}</b> máquinas · {resultado.avisos} avisos
+          </div>
+        )}
       </Card>
 
-      {preview && (
-        <Card>
-          <div className="flex items-center justify-between gap-3 border-b p-3 text-sm">
-            <div className="flex items-center gap-3">
-              <span className={cn('inline-flex items-center gap-1', preview.totalErrores > 0 ? 'text-rose-600 font-semibold' : 'text-emerald-600')}>
-                {preview.totalErrores > 0 ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                {preview.totalErrores} errores
-              </span>
-              <span className="text-amber-600">{preview.totalAvisos} avisos</span>
-              <span className="text-muted-foreground">{preview.filas.length} filas</span>
-            </div>
-            <Button onClick={aplicar} disabled={preview.totalErrores > 0 || aplicando} className="h-8 gap-2 bg-emerald-600 text-white hover:bg-emerald-700">
-              {aplicando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {aplicando ? 'Aplicando…' : 'Aplicar'}
-            </Button>
-          </div>
-          <div className="max-h-[62vh] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Horario</TableHead>
-                  <TableHead>Equipo</TableHead>
-                  <TableHead>Sistema</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {preview.filas.map((f, i) => (
-                  <TableRow key={i} className={cn(f.errores.length && 'bg-rose-50', !f.errores.length && f.avisos.length && 'bg-amber-50')}>
-                    <TableCell className="tabular-nums">#{f.idEmpleado}</TableCell>
-                    <TableCell className="text-xs tabular-nums">{f.fecha}</TableCell>
-                    <TableCell className="text-xs">{f.tipo}</TableCell>
-                    <TableCell className="text-xs tabular-nums">{rango(f.horaInicio, f.horaFin)}</TableCell>
-                    <TableCell className="text-xs tabular-nums">{f.equipo ?? '—'}</TableCell>
-                    <TableCell className="text-xs tabular-nums">{f.sistema ?? '—'}</TableCell>
-                    <TableCell className="text-xs">
-                      {f.errores[0] ? (
-                        <span className="text-rose-700">{f.errores[0]}</span>
-                      ) : f.avisos[0] ? (
-                        <span className="text-amber-700">{f.avisos[0]}</span>
-                      ) : (
-                        <span className="text-muted-foreground">OK</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      )}
+      {/* Diálogo de confirmación (pantalla pre-carga) */}
+      <Dialog open={!!preview} onOpenChange={(o) => !o && limpiar()}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Confirmar carga de turnos — {areaTxt}</DialogTitle>
+            <DialogDescription>
+              Revisa los datos antes de aplicar. Período {desde} – {hasta}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {preview && (
+            <>
+              <div className="flex items-center gap-3 text-sm">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1',
+                    preview.totalErrores > 0 ? 'font-semibold text-rose-600' : 'text-emerald-600',
+                  )}
+                >
+                  {preview.totalErrores > 0 ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                  {preview.totalErrores} errores
+                </span>
+                <span className="text-amber-600">{preview.totalAvisos} avisos</span>
+                <span className="text-muted-foreground">{preview.filas.length} filas</span>
+                {preview.totalErrores > 0 && (
+                  <span className="text-xs text-rose-600">— corrige los errores en el Excel y vuelve a subirlo</span>
+                )}
+              </div>
+
+              <div className="max-h-[60vh] overflow-auto rounded-md border">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background">
+                    <TableRow>
+                      <TableHead>Empleado</TableHead>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Horario</TableHead>
+                      <TableHead>Equipo</TableHead>
+                      <TableHead>Sistema</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {preview.filas.map((f, i) => (
+                      <TableRow key={i} className={cn(f.errores.length && 'bg-rose-50', !f.errores.length && f.avisos.length && 'bg-amber-50')}>
+                        <TableCell className="tabular-nums">#{f.idEmpleado}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{f.fecha}</TableCell>
+                        <TableCell className="text-xs">{f.tipo}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{rango(f.horaInicio, f.horaFin)}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{f.equipo ?? '—'}</TableCell>
+                        <TableCell className="text-xs tabular-nums">{f.sistema ?? '—'}</TableCell>
+                        <TableCell className="text-xs">
+                          {f.errores[0] ? (
+                            <span className="text-rose-700">{f.errores[0]}</span>
+                          ) : f.avisos[0] ? (
+                            <span className="text-amber-700">{f.avisos[0]}</span>
+                          ) : (
+                            <span className="text-muted-foreground">OK</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={limpiar} disabled={aplicando} className="gap-2">
+                  <X className="h-4 w-4" /> Cancelar
+                </Button>
+                <Button
+                  onClick={aplicar}
+                  disabled={preview.totalErrores > 0 || aplicando}
+                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  {aplicando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {aplicando ? 'Aplicando…' : 'Confirmar y aplicar'}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
