@@ -9,6 +9,14 @@ export function useHorasExtra(fechaInicial: string, fechaFinal: string) {
   })
 }
 
+export function useHorasExtraExcluidos(fechaInicial: string, fechaFinal: string) {
+  return useQuery({
+    queryKey: ['horas-extra-excluidos', fechaInicial, fechaFinal],
+    queryFn: () => horasExtraApi.excluidos(fechaInicial, fechaFinal),
+    enabled: Boolean(fechaInicial) && Boolean(fechaFinal),
+  })
+}
+
 export function useHorasExtraDetalle(
   fechaInicial: string,
   fechaFinal: string,

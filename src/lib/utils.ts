@@ -114,6 +114,16 @@ export function nombreEmpleado(e: CamposNombreEmpleado): string {
   return partes || `#${e.id}`
 }
 
+// Nombre en formato "APELLIDOS - NOMBRES" (para listados ordenados por apellido). Cae a las columnas
+// legacy y, en último caso, a `nombreEmpleado`.
+export function apellidosNombre(e: CamposNombreEmpleado): string {
+  const apellidos = [e.primerApellido, e.segundoApellido, e.apellidoCasada].map(limpio).filter(Boolean).join(' ')
+  const nombres = [e.primerNombre, e.segundoNombre, e.tercerNombre].map(limpio).filter(Boolean).join(' ')
+  if (apellidos && nombres) return `${apellidos} - ${nombres}`
+  if (apellidos) return apellidos
+  return nombreEmpleado(e)
+}
+
 // =====================================================
 // Helpers de hora (turnos)
 // =====================================================

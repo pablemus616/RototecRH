@@ -246,12 +246,12 @@ export interface HorasExtraPeriodo {
   sistemas: string[]                     // sistema(s) de turno usados (ej "0-5-2")
 }
 
-export type FuenteTurno = 'ACABADOS' | 'MAQUINAS'
+export type FuenteTurno = 'ACABADOS' | 'MAQUINAS' | 'PVC'
 
 export interface HorasExtraEmpleado {
   idEmpleado: number
   nombre?: string
-  fuente?: FuenteTurno                    // acabados (tTurnosAcabados) | máquinas (tTurnosProduccionDetalle)
+  fuente?: FuenteTurno                    // acabados (tTurnosAcabados) | máquinas (tTurnosProduccionDetalle) | PVC (RHINOTEC.tTurnosPlanificacionPVC)
   periodos: HorasExtraPeriodo[]
 }
 

@@ -71,6 +71,18 @@ export function useUpdateEmpleado(id: string) {
   })
 }
 
+/** Edición de empleado (PUT /empleados/:id con el contrato snake_case del backend). */
+export function useActualizarEmpleado(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Partial<CreateEmpleadoInput>) => empleadosApi.actualizar(id, input),
+    onSuccess: (updated) => {
+      qc.setQueryData([...QK.all, 'backend', id] as const, updated)
+      qc.invalidateQueries({ queryKey: QK.all })
+    },
+  })
+}
+
 export function useDarDeBaja(id: string) {
   const qc = useQueryClient()
   return useMutation({

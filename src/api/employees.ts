@@ -195,6 +195,10 @@ const mockApi = {
     writeStore(all)
     return updated
   },
+  async actualizar(id: string, _input: Partial<CreateEmpleadoInput>): Promise<EmpleadoBackend> {
+    await delay()
+    return { id: Number(id) } as EmpleadoBackend
+  },
   async darDeBaja(id: string, baja: BajaInput): Promise<Empleado> {
     await delay()
     const all = readStore()
@@ -254,6 +258,11 @@ const realApi = {
   },
   async update(id: string, input: EmpleadoInput): Promise<Empleado> {
     const { data } = await api.put<Empleado>(`/empleados/${id}`, input)
+    return data
+  },
+  // Edición con el contrato snake_case del backend real (PUT /empleados/:id → empleado actualizado).
+  async actualizar(id: string, input: Partial<CreateEmpleadoInput>): Promise<EmpleadoBackend> {
+    const { data } = await api.put<EmpleadoBackend>(`/empleados/${id}`, input)
     return data
   },
   async darDeBaja(id: string, baja: BajaInput): Promise<Empleado> {

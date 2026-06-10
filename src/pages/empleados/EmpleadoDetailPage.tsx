@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, UserCheck, UserMinus } from 'lucide-react'
+import { ArrowLeft, Pencil, UserCheck, UserMinus } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -114,6 +114,10 @@ export default function EmpleadoDetailPage() {
           Volver
         </Button>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate(`/empleados/${id}/editar`)}>
+            <Pencil className="h-4 w-4" />
+            Editar
+          </Button>
           {data.estaActivo ? (
             <Button variant="destructive" onClick={() => setBajaOpen(true)}>
               <UserMinus className="h-4 w-4" />

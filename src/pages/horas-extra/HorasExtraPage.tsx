@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { AlertTriangle, CalendarDays, Check, Clock, Eye, Moon, Search, Sun, Users } from 'lucide-react'
+import { AlertTriangle, Boxes, Check, Clock, Cog, Download, Eye, Loader2, Moon, Package, Search, Sun, UserX, Users, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -21,13 +21,21 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useEmpleadosBackendList } from '@/hooks/useEmpleados'
-import { useHorasExtra, useHorasExtraDesglose, useHorasExtraDetalle } from '@/hooks/useHorasExtra'
-import { cn, nombreEmpleado } from '@/lib/utils'
-import type { DesgloseSemanaHE, DetalleDiaHE, EmpleadoBackend } from '@/types'
+import {
+  useHorasExtra,
+  useHorasExtraDesglose,
+  useHorasExtraDetalle,
+  useHorasExtraExcluidos,
+} from '@/hooks/useHorasExtra'
+import { horasExtraApi } from '@/api/horas-extra'
+import { apellidosNombre, cn } from '@/lib/utils'
+import { exportarExcluidos, exportarHorasExtra } from '@/lib/exportHorasExtra'
+import type { DesgloseSemanaHE, DetalleDiaHE, EmpleadoBackend, ExcluidoHE, FuenteTurno } from '@/types'
 
 interface Fila {
   idEmpleado: number
   nombre: string
+  fuente?: FuenteTurno
   periodo: string
   dia: number
   noche: number
@@ -36,16 +44,106 @@ interface Fila {
   sistemas: string[]
 }
 
+// Etiqueta de la fuente del turno (de qué tabla viene el empleado).
+function FuenteBadge({ fuente }: { fuente?: FuenteTurno }) {
+  if (fuente === 'ACABADOS')
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium bg-violet-100 text-violet-700">
+        <Package className="h-3 w-3" /> Acabados
+      </span>
+    )
+  if (fuente === 'MAQUINAS')
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium bg-teal-100 text-teal-700">
+        <Cog className="h-3 w-3" /> Máquinas
+      </span>
+    )
+  if (fuente === 'PVC')
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium bg-sky-100 text-sky-700">
+        <Boxes className="h-3 w-3" /> PVC
+      </span>
+    )
+  return <span className="text-xs text-muted-foreground">—</span>
+}
+
+// Nombre "APELLIDOS - Nombres": apellidos en negrita, nombres tenues (formato de directorio).
+function NombreCell({ nombre }: { nombre: string }) {
+  const i = nombre.indexOf(' - ')
+  if (i === -1) return <span className="font-medium">{nombre}</span>
+  return (
+    <span className="whitespace-nowrap">
+      <span className="font-semibold">{nombre.slice(0, i)}</span>
+      <span className="text-muted-foreground"> — {nombre.slice(i + 3)}</span>
+    </span>
+  )
+}
+
+// Control segmentado para filtrar por fuente (Todos / Acabados / Máquinas / PVC), con conteos.
+function FuenteFilter({
+  value,
+  onChange,
+  counts,
+}: {
+  value: 'TODAS' | FuenteTurno
+  onChange: (v: 'TODAS' | FuenteTurno) => void
+  counts: Record<'TODAS' | FuenteTurno, number>
+}) {
+  const opts: { key: 'TODAS' | FuenteTurno; label: string; dot?: string; active: string }[] = [
+    { key: 'TODAS', label: 'Todos', active: 'bg-foreground text-background' },
+    { key: 'ACABADOS', label: 'Acabados', dot: 'bg-violet-500', active: 'bg-violet-600 text-white' },
+    { key: 'MAQUINAS', label: 'Máquinas', dot: 'bg-teal-500', active: 'bg-teal-600 text-white' },
+    { key: 'PVC', label: 'PVC', dot: 'bg-sky-500', active: 'bg-sky-600 text-white' },
+  ]
+  return (
+    <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+      {opts.map((o) => {
+        const on = value === o.key
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            className={cn(
+              'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-all',
+              on ? `${o.active} shadow-sm` : 'text-muted-foreground hover:bg-background hover:text-foreground',
+            )}
+          >
+            {o.dot && <span className={cn('h-1.5 w-1.5 rounded-full', on ? 'bg-white' : o.dot)} />}
+            {o.label}
+            <span className={cn('tabular-nums', on ? 'opacity-90' : 'opacity-50')}>{counts[o.key]}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function hhDecimal(n: number): string {
   return n.toFixed(2)
 }
 
+function isoLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+/** Primer día del mes en curso (YYYY-MM-DD, hora local). */
+function primerDiaDelMes(): string {
+  const n = new Date()
+  return isoLocal(new Date(n.getFullYear(), n.getMonth(), 1))
+}
+/** Hoy (YYYY-MM-DD, hora local). */
+function hoy(): string {
+  return isoLocal(new Date())
+}
+
 export default function HorasExtraPage() {
-  // Por defecto, el rango validado contra el Machote de mayo (3 semanas completas).
-  const [desde, setDesde] = useState('2026-04-27')
-  const [hasta, setHasta] = useState('2026-05-17')
+  // Por defecto: del primer día del mes en curso hasta hoy.
+  const [desde, setDesde] = useState(primerDiaDelMes)
+  const [hasta, setHasta] = useState(hoy)
   const [texto, setTexto] = useState('')
+  const [fuenteFiltro, setFuenteFiltro] = useState<'TODAS' | FuenteTurno>('TODAS')
   const [detalle, setDetalle] = useState<{ id: number; nombre: string } | null>(null)
+  const [exportando, setExportando] = useState(false)
 
   const q = useHorasExtra(desde, hasta)
   const { data: empleados } = useEmpleadosBackendList()
@@ -63,51 +161,132 @@ export default function HorasExtraPage() {
         // Mostrar quien tenga horas extra O un déficit (deben horas); ocultar lo neutro.
         if (p.dia <= 0 && p.noche <= 0 && p.excedente >= -0.005) continue
         const emp = empById.get(e.idEmpleado)
-        const nombre = emp ? nombreEmpleado(emp) : e.nombre || `#${e.idEmpleado}`
-        out.push({ idEmpleado: e.idEmpleado, nombre, ...p })
+        const nombre = emp ? apellidosNombre(emp) : e.nombre || `#${e.idEmpleado}`
+        out.push({ idEmpleado: e.idEmpleado, nombre, fuente: e.fuente, ...p })
       }
     }
     const t = texto.trim().toLowerCase()
     return out
+      .filter((f) => fuenteFiltro === 'TODAS' || f.fuente === fuenteFiltro)
       .filter((f) => !t || f.nombre.toLowerCase().includes(t))
       .sort((a, b) => a.nombre.localeCompare(b.nombre) || a.periodo.localeCompare(b.periodo))
-  }, [q.data, texto, empById])
+  }, [q.data, texto, fuenteFiltro, empById])
+
+  // Conteo por fuente (sobre todo el universo con HE, sin aplicar el filtro de fuente) para las pestañas.
+  const conteoFuente = useMemo(() => {
+    const ids = { ACABADOS: new Set<number>(), MAQUINAS: new Set<number>(), PVC: new Set<number>() }
+    for (const e of q.data ?? []) {
+      const tieneHE = e.periodos.some((p) => p.dia > 0 || p.noche > 0 || p.excedente < -0.005)
+      if (tieneHE && e.fuente) ids[e.fuente].add(e.idEmpleado)
+    }
+    return {
+      ACABADOS: ids.ACABADOS.size,
+      MAQUINAS: ids.MAQUINAS.size,
+      PVC: ids.PVC.size,
+      TODAS: ids.ACABADOS.size + ids.MAQUINAS.size + ids.PVC.size,
+    }
+  }, [q.data])
 
   const totalDia = filas.reduce((s, f) => s + f.dia, 0)
   const totalNoche = filas.reduce((s, f) => s + f.noche, 0)
   const empleadosConHE = new Set(filas.map((f) => f.idEmpleado)).size
 
+  // Excluidos (programados que no marcaron), con el nombre resuelto desde el catálogo y ordenados.
+  const exclQ = useHorasExtraExcluidos(desde, hasta)
+  const excluidos = useMemo(() => {
+    return (exclQ.data ?? [])
+      .map((ex) => {
+        const emp = empById.get(ex.idEmpleado)
+        return { ...ex, nombre: emp ? apellidosNombre(emp) : ex.nombre || `#${ex.idEmpleado}` }
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [exclQ.data, empById])
+
+  const onExportar = async () => {
+    setExportando(true)
+    try {
+      // El detalle día a día de todos se trae al momento de exportar (consulta más pesada).
+      const det = await horasExtraApi.detalleTodos(desde, hasta)
+      const detalle = det.map((e) => {
+        const emp = empById.get(e.idEmpleado)
+        return {
+          nombre: emp ? apellidosNombre(emp) : e.nombre || `#${e.idEmpleado}`,
+          fuente: e.fuente,
+          dias: e.dias,
+        }
+      })
+      await exportarHorasExtra({ filas, excluidos, detalle, desde, hasta, fuente: fuenteFiltro })
+    } finally {
+      setExportando(false)
+    }
+  }
+  const onExportarExcluidos = () => exportarExcluidos({ excluidos, desde, hasta })
+
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Desde</label>
-              <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="w-40" />
+      {/* Encabezado */}
+      <div className="flex items-center gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-amber-500/20 via-sky-500/15 to-violet-500/20 p-2.5 ring-1 ring-border">
+          <Clock className="h-5 w-5 text-foreground" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold leading-none tracking-tight">Horas Extra</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Semanas lun–dom · cálculo por quincena</p>
+        </div>
+      </div>
+
+      {/* Barra de filtros */}
+      <Card className="p-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-wrap items-end gap-2.5">
+            <div className="flex items-end gap-2 rounded-lg border bg-muted/30 p-2">
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Desde</label>
+                <Input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-9 w-36" />
+              </div>
+              <span className="pb-2.5 text-muted-foreground">→</span>
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Hasta</label>
+                <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-36" />
+              </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Hasta</label>
-              <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="w-40" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Empleado</label>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Empleado</label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
-                  placeholder="Buscar nombre"
-                  className="w-64 pl-9"
+                  placeholder="Buscar por apellido o nombre…"
+                  className="h-9 w-72 pl-9 pr-8"
                 />
+                {texto && (
+                  <button
+                    type="button"
+                    onClick={() => setTexto('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
-            <span className="tabular-nums">
-              Semanas lun-dom · netting quincenal
-            </span>
+          <div className="flex flex-wrap items-end gap-2.5">
+            <div>
+              <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Fuente</label>
+              <FuenteFilter value={fuenteFiltro} onChange={setFuenteFiltro} counts={conteoFuente} />
+            </div>
+            <Button
+              onClick={onExportar}
+              disabled={!filas.length || exportando}
+              className="h-9 gap-2 bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+              title="Descargar Resumen + Detalle día a día + Excluidos en Excel"
+            >
+              {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exportando ? 'Generando…' : 'Exportar a Excel'}
+            </Button>
           </div>
         </div>
       </Card>
@@ -123,6 +302,7 @@ export default function HorasExtraPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Empleado</TableHead>
+              <TableHead>Fuente</TableHead>
               <TableHead>Periodo</TableHead>
               <TableHead>Sistema(s)</TableHead>
               <TableHead className="text-right">Efectivas</TableHead>
@@ -136,27 +316,28 @@ export default function HorasExtraPage() {
             {q.isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : q.isError ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-destructive">
+                <TableCell colSpan={9} className="py-10 text-center text-destructive">
                   Error al calcular horas extra. Revisa que el backend y los datos del rango existan.
                 </TableCell>
               </TableRow>
             ) : filas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                   Sin horas extra en el rango seleccionado.
                 </TableCell>
               </TableRow>
             ) : (
               filas.map((f) => (
                 <TableRow key={`${f.idEmpleado}-${f.periodo}`}>
-                  <TableCell className="font-medium">{f.nombre}</TableCell>
+                  <TableCell><NombreCell nombre={f.nombre} /></TableCell>
+                  <TableCell><FuenteBadge fuente={f.fuente} /></TableCell>
                   <TableCell className="text-xs tabular-nums text-muted-foreground">{f.periodo}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{f.sistemas.join(' · ') || '—'}</TableCell>
                   <TableCell className="text-right tabular-nums">{hhDecimal(f.horasEfectivas)}</TableCell>
@@ -195,6 +376,8 @@ export default function HorasExtraPage() {
         </Table>
       </Card>
 
+      <ExcluidosCard excluidos={excluidos} isLoading={exclQ.isLoading} onExport={onExportarExcluidos} />
+
       <DetalleDialog
         desde={desde}
         hasta={hasta}
@@ -231,6 +414,91 @@ function StatChip({
         <p className="mt-1 truncate text-[11px] text-muted-foreground">{label}</p>
       </div>
     </div>
+  )
+}
+
+// Excluidos del cálculo: tienen turno programado en el rango pero no marcaron ("no vino").
+function ExcluidosCard({
+  excluidos,
+  isLoading,
+  onExport,
+}: {
+  excluidos: (ExcluidoHE & { nombre: string })[]
+  isLoading: boolean
+  onExport: () => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+
+  if (!isLoading && excluidos.length === 0) return null
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          className="flex items-center gap-2 text-left text-sm font-semibold"
+        >
+          <UserX className="h-4 w-4 text-rose-600" />
+          Excluidos del cálculo
+          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">
+            {excluidos.length}
+          </span>
+          <span className="text-xs font-normal text-muted-foreground">
+            programados que no marcaron (no vinieron)
+          </span>
+          <span className="text-xs text-muted-foreground">· {abierto ? 'ocultar' : 'ver'}</span>
+        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onExport}
+          disabled={!excluidos.length}
+          className="h-8 shrink-0 gap-2"
+          title="Descargar los excluidos en Excel"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exportar
+        </Button>
+      </div>
+
+      {abierto && (
+        <div className="mt-3 overflow-x-auto rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Empleado</TableHead>
+                <TableHead>Fuente</TableHead>
+                <TableHead className="text-right">Días programados</TableHead>
+                <TableHead>Razón</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={4}>
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                excluidos.map((f) => (
+                  <TableRow key={f.idEmpleado}>
+                    <TableCell><NombreCell nombre={f.nombre} /></TableCell>
+                    <TableCell>
+                      <FuenteBadge fuente={f.fuente} />
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{f.diasProgramados}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">No marcó (no vino)</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -282,6 +550,14 @@ function Badge({ tone, children }: { tone: 'red' | 'amber' | 'green'; children: 
 }
 
 function EstadoDia({ dia, trabajado }: { dia: DetalleDiaHE; trabajado: boolean }) {
+  // Turno programado sin ninguna marca → no se presentó (no se infiere asistencia ni se pagan horas).
+  if (dia.tipo === 'AUSENTE') {
+    return (
+      <Badge tone="red">
+        <AlertTriangle className="h-3 w-3" /> No se presentó
+      </Badge>
+    )
+  }
   const badges: ReactNode[] = []
   if (dia.faltaMarca)
     badges.push(
@@ -505,7 +781,7 @@ function DetalleDialog({
                   ) : (
                     det.data.map((d) => {
                       const trabajado = d.tipo === 'DIA' || d.tipo === 'NOCHE'
-                      const grave = d.faltaMarca || d.marcaSinTurno || d.marcaFueraDeTurno
+                      const grave = d.faltaMarca || d.marcaSinTurno || d.marcaFueraDeTurno || d.tipo === 'AUSENTE'
                       const leve = d.inconsistente && !grave
                       return (
                         <TableRow

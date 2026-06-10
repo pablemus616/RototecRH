@@ -5,6 +5,7 @@ import LoginPage from '@/pages/auth/LoginPage'
 import EmpleadosListPage from '@/pages/empleados/EmpleadosListPage'
 import EmpleadoDetailPage from '@/pages/empleados/EmpleadoDetailPage'
 import EmpleadoCreateWizard from '@/pages/empleados/nuevo/EmpleadoCreateWizard'
+import EmpleadoEditPage from '@/pages/empleados/EmpleadoEditPage'
 import TurnosListPage from '@/pages/turnos/TurnosListPage'
 import AsistenciasListPage from '@/pages/asistencias/AsistenciasListPage'
 import AsistenciaEmpleadoPage from '@/pages/asistencias/AsistenciaEmpleadoPage'
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
           { path: 'empleados', element: <EmpleadosListPage /> },
           { path: 'empleados/nuevo', element: <EmpleadoCreateWizard /> },
           { path: 'empleados/:id', element: <EmpleadoDetailPage /> },
+          { path: 'empleados/:id/editar', element: <EmpleadoEditPage /> },
           { path: 'turnos', element: <TurnosListPage /> },
           { path: 'asistencias', element: <AsistenciasListPage /> },
           { path: 'asistencias/:id', element: <AsistenciaEmpleadoPage /> },
