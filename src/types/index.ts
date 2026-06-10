@@ -280,6 +280,8 @@ export interface PreviewFilaTurno {
   horaInicio: string | null
   horaFin: string | null
   metaDia: number | null                 // solo Acabados: meta en minutos efectivos
+  numTurno: number | null                // solo Máquinas: NumTurno efectivo (explícito o inferido)
+  maquina: number | null                 // solo Máquinas: idMaquina
   equipo: number | null
   sistema: string | null
   errores: string[]

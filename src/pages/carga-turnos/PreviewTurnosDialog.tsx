@@ -243,7 +243,8 @@ export default function PreviewTurnosDialog({
   }, [grupos.length, acabados, open])
 
   const visiblesCount = grupos.reduce((n, g) => n + g.filas.length, 0)
-  const cols = acabados ? 6 : 5 // Fecha, Tipo, Horario, [Meta], Sistema, Estado
+  // Fecha, Tipo, Horario, [Meta acabados | Turno+Máquina máquinas], Sistema, Estado
+  const cols = acabados ? 6 : 7
   const trabajados = conteos.tip.DIA + conteos.tip.NOCHE
   const bloqueado = (preview?.totalErrores ?? 0) > 0
 
@@ -359,6 +360,8 @@ export default function PreviewTurnosDialog({
                   <th className="w-28">Tipo</th>
                   <th className="w-28">Horario</th>
                   {acabados && <th className="w-24">Meta</th>}
+                  {!acabados && <th className="w-16">Turno</th>}
+                  {!acabados && <th className="w-24">Máquina</th>}
                   <th className="w-20">Sistema</th>
                   <th>Estado</th>
                 </tr>
@@ -497,6 +500,18 @@ function FragmentGroup({
               {f.horaInicio ? `${fmtHora(f.horaInicio)}–${fmtHora(f.horaFin)}` : '—'}
             </td>
             {acabados && <td className="tabular-nums text-xs">{f.metaDia != null ? fmtMeta(f.metaDia) : '—'}</td>}
+            {!acabados && <td className="tabular-nums text-xs">{f.numTurno ?? '—'}</td>}
+            {!acabados && (
+              <td className="text-xs">
+                {f.maquina != null ? (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    <Cog className="h-3 w-3 text-muted-foreground" /> {f.maquina}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
+            )}
             <td className="tabular-nums text-xs text-muted-foreground">{f.sistema ?? '—'}</td>
             <td className="text-xs">
               {est === 'error' ? (
