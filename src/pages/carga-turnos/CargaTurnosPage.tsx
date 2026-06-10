@@ -1,31 +1,12 @@
 import { useRef, useState } from 'react'
-import { AlertTriangle, Check, Download, Loader2, Upload, X } from 'lucide-react'
+import { Check, Download, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { cargaTurnosApi } from '@/api/cargaTurnos'
 import type { PreviewTurnos } from '@/types'
-
-function rango(a: string | null, b: string | null): string {
-  const f = (h: string | null) => (h ? h.slice(0, 5) : '—')
-  return a || b ? `${f(a)}–${f(b)}` : '—'
-}
+import PreviewTurnosDialog from './PreviewTurnosDialog'
 
 export default function CargaTurnosPage() {
   const [desde, setDesde] = useState('')
@@ -39,7 +20,6 @@ export default function CargaTurnosPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const rangoOk = Boolean(desde && hasta && desde <= hasta)
-  const areaTxt = area === 1 ? 'Acabados' : 'Máquinas'
 
   const descargar = async () => {
     const blob = await cargaTurnosApi.descargarPlantilla(desde, hasta, area)
@@ -105,9 +85,10 @@ export default function CargaTurnosPage() {
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Hasta</label>
             <Input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-9 w-40" />
           </div>
-          <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+          <div role="group" aria-label="Área" className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
             <button
               type="button"
+              aria-pressed={area === 1}
               onClick={() => setArea(1)}
               className={cn('h-7 rounded-md px-3 text-xs font-medium', area === 1 ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground')}
             >
@@ -115,6 +96,7 @@ export default function CargaTurnosPage() {
             </button>
             <button
               type="button"
+              aria-pressed={area === 2}
               onClick={() => setArea(2)}
               className={cn('h-7 rounded-md px-3 text-xs font-medium', area === 2 ? 'bg-teal-600 text-white shadow-sm' : 'text-muted-foreground')}
             >
@@ -144,89 +126,16 @@ export default function CargaTurnosPage() {
         )}
       </Card>
 
-      {/* Diálogo de confirmación (pantalla pre-carga) */}
-      <Dialog open={!!preview} onOpenChange={(o) => !o && limpiar()}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Confirmar carga de turnos — {areaTxt}</DialogTitle>
-            <DialogDescription>
-              Revisa los datos antes de aplicar. Período {desde} – {hasta}.
-            </DialogDescription>
-          </DialogHeader>
-
-          {preview && (
-            <>
-              <div className="flex items-center gap-3 text-sm">
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1',
-                    preview.totalErrores > 0 ? 'font-semibold text-rose-600' : 'text-emerald-600',
-                  )}
-                >
-                  {preview.totalErrores > 0 ? <AlertTriangle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                  {preview.totalErrores} errores
-                </span>
-                <span className="text-amber-600">{preview.totalAvisos} avisos</span>
-                <span className="text-muted-foreground">{preview.filas.length} filas</span>
-                {preview.totalErrores > 0 && (
-                  <span className="text-xs text-rose-600">— corrige los errores en el Excel y vuelve a subirlo</span>
-                )}
-              </div>
-
-              <div className="max-h-[60vh] overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background">
-                    <TableRow>
-                      <TableHead>Empleado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Horario</TableHead>
-                      <TableHead>Equipo</TableHead>
-                      <TableHead>Sistema</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {preview.filas.map((f, i) => (
-                      <TableRow key={i} className={cn(f.errores.length && 'bg-rose-50', !f.errores.length && f.avisos.length && 'bg-amber-50')}>
-                        <TableCell className="tabular-nums">#{f.idEmpleado}</TableCell>
-                        <TableCell className="text-xs tabular-nums">{f.fecha}</TableCell>
-                        <TableCell className="text-xs">{f.tipo}</TableCell>
-                        <TableCell className="text-xs tabular-nums">{rango(f.horaInicio, f.horaFin)}</TableCell>
-                        <TableCell className="text-xs tabular-nums">{f.equipo ?? '—'}</TableCell>
-                        <TableCell className="text-xs tabular-nums">{f.sistema ?? '—'}</TableCell>
-                        <TableCell className="text-xs">
-                          {f.errores[0] ? (
-                            <span className="text-rose-700">{f.errores[0]}</span>
-                          ) : f.avisos[0] ? (
-                            <span className="text-amber-700">{f.avisos[0]}</span>
-                          ) : (
-                            <span className="text-muted-foreground">OK</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={limpiar} disabled={aplicando} className="gap-2">
-                  <X className="h-4 w-4" /> Cancelar
-                </Button>
-                <Button
-                  onClick={aplicar}
-                  disabled={preview.totalErrores > 0 || aplicando}
-                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
-                >
-                  {aplicando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  {aplicando ? 'Aplicando…' : 'Confirmar y aplicar'}
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <PreviewTurnosDialog
+        open={!!preview}
+        preview={preview}
+        area={(preview?.idArea ?? area) as 1 | 2}
+        desde={desde}
+        hasta={hasta}
+        aplicando={aplicando}
+        onCancel={limpiar}
+        onConfirm={aplicar}
+      />
     </div>
   )
 }

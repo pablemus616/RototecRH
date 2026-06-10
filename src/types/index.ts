@@ -274,16 +274,19 @@ export interface EmpleadoElegible {
 }
 export interface PreviewFilaTurno {
   idEmpleado: number
+  nombre: string                         // "Apellidos - Nombres"
   fecha: string
   tipo: string                           // DIA | NOCHE | DESCANSO | ASUETO
   horaInicio: string | null
   horaFin: string | null
+  metaDia: number | null                 // solo Acabados: meta en minutos efectivos
   equipo: number | null
   sistema: string | null
   errores: string[]
   avisos: string[]
 }
 export interface PreviewTurnos {
+  idArea: number                         // área detectada del Excel (fuente de verdad para el diálogo)
   filas: PreviewFilaTurno[]
   totalErrores: number
   totalAvisos: number
