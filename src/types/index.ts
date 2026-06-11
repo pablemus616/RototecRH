@@ -7,7 +7,7 @@ export type TipoCuentaType = 'AHORRO' | 'MONETARIA'
 export type TemporalidadContratoType = 'INDEFINIDO' | 'TEMPORAL'
 export type TipoContratoType = 'PLANILLA' | 'SERVICIOS' | 'OTRO'
 export type EstadoEmpleadoType = 'ACTIVO' | 'BAJA'
-export type TipoBajaType = 'RENUNCIA' | 'DESPIDO' | 'ABANDONO'
+export type TipoBajaType = 'RENUNCIA' | 'DESPIDO' | 'ABANDONO' | 'DESPIDO JUSTIFICADO'
 export type TipoTurno = 'DIURNO' | 'NOCTURNO'
 export type DepartamentoRototecType =
   | 'PRODUCCION'

@@ -10,7 +10,10 @@
       "Bash(npm run *)",
       "Bash(curl -s -m 4 -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3001/health)",
       "Bash(curl -s -m 4 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:4012/auth/me)",
-      "Bash(curl -s -m 6 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3001/api/v2/auth/me)"
+      "Bash(curl -s -m 6 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3001/api/v2/auth/me)",
+      "mcp__claude_ai_Vercel__list_teams",
+      "mcp__claude_ai_Vercel__list_projects",
+      "Bash(python3 *)"
     ]
   }
 }
