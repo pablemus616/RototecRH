@@ -195,6 +195,7 @@ export const TIPOS_BAJA: { value: TipoBajaType; label: string }[] = [
   { value: 'RENUNCIA', label: 'Renuncia' },
   { value: 'DESPIDO', label: 'Despido' },
   { value: 'ABANDONO', label: 'Abandono' },
+  { value: 'DESPIDO JUSTIFICADO', label: 'Despido Justificado' }
 ]
 
 // =====================================================
