@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { NameCombobox } from '@/components/ui/name-combobox'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -31,18 +32,29 @@ import {
   usePensums,
   useUpdatePensum,
 } from '@/hooks/useCapacitaciones'
+import { usePuestoOptions } from '@/hooks/usePuestoOptions'
 import { pensumSchema, type PensumFormValues } from '@/lib/validators'
 import type { Pensum, PensumInput } from '@/types'
 import { PensumEditor } from './PensumEditor'
 
+const norm = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 export default function PensumsTab() {
   const { data, isLoading, isError } = usePensums()
+  const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Pensum | undefined>(undefined)
   const [editorId, setEditorId] = useState<number | undefined>(undefined)
   const deleteMut = useDeletePensum()
 
   const pensums = data ?? []
+
+  const filtered = useMemo(() => {
+    const q = norm(search.trim())
+    if (!q) return pensums
+    return pensums.filter((p) => norm(p.nombre).includes(q))
+  }, [pensums, search])
 
   function openCreate() {
     setEditing(undefined)
@@ -65,13 +77,24 @@ export default function PensumsTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {pensums.length} pensum{pensums.length === 1 ? '' : 's'} en el catálogo
-        </p>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          Nuevo pensum
-        </Button>
+        <div className="relative sm:w-64">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por nombre"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} pensum{filtered.length === 1 ? '' : 's'}
+          </p>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Nuevo pensum
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -98,14 +121,14 @@ export default function PensumsTab() {
                   Error al cargar pensums
                 </TableCell>
               </TableRow>
-            ) : pensums.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={3} className="py-10 text-center text-muted-foreground">
-                  Sin pensums en el catálogo
+                  {search ? 'Sin resultados para la búsqueda' : 'Sin pensums en el catálogo'}
                 </TableCell>
               </TableRow>
             ) : (
-              pensums.map((p) => (
+              filtered.map((p) => (
                 <TableRow
                   key={p.id}
                   className="cursor-pointer"
@@ -156,7 +179,7 @@ export default function PensumsTab() {
   )
 }
 
-const defaultValues: PensumFormValues = { nombre: '', puesto: '' }
+const defaultValues: PensumFormValues = { nombre: '', puesto: '', idPuesto: null }
 
 function PensumFormDialog({
   open,
@@ -172,6 +195,9 @@ function PensumFormDialog({
   const createMut = useCreatePensum()
   const updateMut = useUpdatePensum(pensum?.id ?? 0)
   const isSubmitting = createMut.isPending || updateMut.isPending
+  const { options: puestoOptions, isLoading: puestosLoading } = usePuestoOptions()
+
+  const [idPuesto, setIdPuesto] = useState<number | null>(null)
 
   const form = useForm<PensumFormValues>({
     resolver: zodResolver(pensumSchema),
@@ -181,17 +207,20 @@ function PensumFormDialog({
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && pensum) {
-      form.reset({ nombre: pensum.nombre, puesto: pensum.puesto ?? '' })
+      form.reset({ nombre: pensum.nombre, puesto: pensum.puesto ?? '', idPuesto: pensum.idPuesto ?? null })
+      setIdPuesto(pensum.idPuesto ?? null)
     } else {
       form.reset(defaultValues)
+      setIdPuesto(null)
     }
   }, [open, mode, pensum, form])
 
   async function onSubmit(values: PensumFormValues) {
+    const selectedPuesto = puestoOptions.find((o) => o.id === idPuesto)
     const input: PensumInput = {
       nombre: values.nombre,
-      puesto: values.puesto || undefined,
-      idPuesto: values.idPuesto,
+      idPuesto: idPuesto ?? undefined,
+      puesto: selectedPuesto?.nombre ?? values.puesto || undefined,
     }
     try {
       if (mode === 'create') {
@@ -229,10 +258,16 @@ function PensumFormDialog({
           </div>
           <div>
             <Label className="mb-1.5 block">Puesto</Label>
-            <Input placeholder="Ej: Operario de producción" {...form.register('puesto')} />
-            {errors.puesto && (
-              <p className="mt-1 text-xs text-destructive">{errors.puesto.message}</p>
-            )}
+            <NameCombobox
+              options={puestoOptions}
+              value={idPuesto}
+              onChange={setIdPuesto}
+              placeholder={puestosLoading ? 'Cargando puestos…' : 'Selecciona un puesto'}
+              searchPlaceholder="Buscar puesto…"
+              allowAll
+              allLabel="Sin puesto específico"
+              disabled={puestosLoading}
+            />
           </div>
 
           <DialogFooter>
