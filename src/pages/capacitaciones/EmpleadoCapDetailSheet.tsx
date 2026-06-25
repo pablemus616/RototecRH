@@ -293,7 +293,7 @@ function AsignacionCard({
     }
   }
 
-  const pensumNombre = pensumArbol?.nombre ?? `Pensum ${asignacion.idPensum}`
+  const pensumNombre = pensumArbol?.nombre ?? 'Pensum'
   const tipoBadgeVariant: 'default' | 'secondary' =
     asignacion.tipo === 'primaria' ? 'default' : 'secondary'
   const tipoLabel = asignacion.tipo === 'primaria' ? 'Primaria' : 'Secundaria'
