@@ -26,7 +26,9 @@
       "Bash($SK/scripts/task-brief *)",
       "Bash(/home/plemus/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief /home/plemus/WebstormProjects/RototecRH/docs/superpowers/plans/2026-06-25-capacitaciones-backend-autoria.md 1)",
       "Bash(git -C /home/plemus/WebstormProjects/Microservicios branch --show-current)",
-      "Bash(git -C /home/plemus/WebstormProjects/Microservicios rev-parse --short HEAD)"
+      "Bash(git -C /home/plemus/WebstormProjects/Microservicios rev-parse --short HEAD)",
+      "Bash(rg -rln 'PensumForm|editar.*pensum|pensum.*editar|defaultValues.*idPuesto' src/pages/capacitaciones)",
+      "Bash(git -C /home/plemus/WebstormProjects/RototecRH checkout -b fix/cap-combobox-seleccion)"
     ]
   }
 }

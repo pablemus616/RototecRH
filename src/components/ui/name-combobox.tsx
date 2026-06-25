@@ -156,7 +156,13 @@ export function NameCombobox({
                     type="button"
                     ref={(el) => (itemRefs.current[i] = el)}
                     onMouseEnter={() => setActiveIndex(i)}
-                    onClick={() => commit(opt.id)}
+                    // Seleccionar en mousedown (con preventDefault) para que la selección
+                    // se registre ANTES del handler de cerrar-al-click-fuera (que corre en
+                    // mousedown a nivel document) y antes de que el input pierda foco.
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      commit(opt.id)
+                    }}
                     className={cn(
                       'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-left text-sm outline-none',
                       i === activeIndex && 'bg-accent text-accent-foreground',
