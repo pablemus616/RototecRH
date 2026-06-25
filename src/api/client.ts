@@ -19,15 +19,20 @@ export function extractApiErrorMessage(err: unknown): string {
   return 'Error desconocido'
 }
 
-function attachInterceptors(instance: AxiosInstance, opts: { unwrapEnvelope?: boolean } = {}) {
+function attachInterceptors(
+  instance: AxiosInstance,
+  opts: { unwrapEnvelope?: boolean; skipAuth?: boolean } = {},
+) {
   // Inyecta el token de sesión en cada request (esquema Bearer, igual que el resto de MS).
-  instance.interceptors.request.use((config) => {
-    const token = getToken()
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  })
+  if (!opts.skipAuth) {
+    instance.interceptors.request.use((config) => {
+      const token = getToken()
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+      return config
+    })
+  }
 
   instance.interceptors.response.use(
     (res) => {
@@ -85,5 +90,16 @@ export const rrhhApi = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 attachInterceptors(rrhhApi, { unwrapEnvelope: true })
+
+// Instancia PÚBLICA para el examen por token (sin Bearer). El empleado que abre
+// /examen/:token NO está autenticado; el backend marca GET/POST /examen/:token
+// como públicos. Reusa baseURL y el unwrap de { ok, message, data } pero NO
+// inyecta Authorization. Si el gateway exigiera auth a nivel de ruteo, este es el
+// único punto a ajustar (p.ej. un prefijo público dedicado).
+export const rrhhPublicApi = axios.create({
+  baseURL: `${BASE_URL}/rrhh`,
+  headers: { 'Content-Type': 'application/json' },
+})
+attachInterceptors(rrhhPublicApi, { unwrapEnvelope: true, skipAuth: true })
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
