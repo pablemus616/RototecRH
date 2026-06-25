@@ -400,3 +400,63 @@ export const WIZARD_STEP_FIELDS: (keyof EmpleadoCreateValues)[][] = [
    'salario_base_contrato', 'profesion', 'titulo', 'forma_pago', 'codigo_banco', 'numero_cuenta', 'tipo_cuenta'],
   ['departamento_biotime', 'ubicacion_biometrico'],
 ]
+
+// =====================================================
+// CAPACITACIONES
+// =====================================================
+const optStr = (max = 200) => z.string().max(max).optional().or(z.literal(''))
+
+export const pensumSchema = z.object({
+  nombre: z.string().min(1, 'Requerido').max(120),
+  idPuesto: z.coerce.number().int().positive().optional(),
+  puesto: optStr(120),
+})
+export type PensumFormValues = z.infer<typeof pensumSchema>
+
+export const moduloSchema = z.object({
+  modulo: z.string().min(1, 'Requerido').max(160),
+  objetivo: optStr(500),
+  duracionHoras: z.coerce.number().min(0).max(999).optional(),
+  capacitador: z.coerce.number().int().positive().optional(),
+  tipoEvaluacion: optStr(80),
+  instrumentos: optStr(300),
+  porcentajeAprobacion: z.coerce.number().min(0).max(100).optional(),
+  vigencia: z.coerce.number().int().min(0).max(120).optional(),
+  bono: z.boolean().optional(),
+})
+export type ModuloFormValues = z.infer<typeof moduloSchema>
+
+export const temaSchema = z.object({
+  tema: z.string().min(1, 'Requerido').max(200),
+  modalidad: optStr(80),
+  recursos: optStr(300),
+})
+export type TemaFormValues = z.infer<typeof temaSchema>
+
+export const evaluacionSchema = z.object({
+  nombre: optStr(160),
+})
+export type EvaluacionFormValues = z.infer<typeof evaluacionSchema>
+
+export const preguntaSchema = z.object({
+  pregunta: z.string().min(1, 'Requerido').max(500),
+  puntosPorRespuesta: z.coerce.number().min(0).max(100).optional(),
+  idTema: z.coerce.number().int().positive().optional(),
+})
+export type PreguntaFormValues = z.infer<typeof preguntaSchema>
+
+export const respuestaSchema = z.object({
+  respuesta: z.string().min(1, 'Requerido').max(300),
+  respuestaCorrecta: z.boolean().optional(),
+})
+export type RespuestaFormValues = z.infer<typeof respuestaSchema>
+
+export const asignacionSecundariaSchema = z.object({
+  idPensum: z.coerce.number().int().positive('Selecciona un pensum'),
+})
+export type AsignacionSecundariaFormValues = z.infer<typeof asignacionSecundariaSchema>
+
+export const generarExamenSchema = z.object({
+  horasVigencia: z.coerce.number().int().min(1).max(720).optional(),
+})
+export type GenerarExamenFormValues = z.infer<typeof generarExamenSchema>

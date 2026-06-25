@@ -672,3 +672,166 @@ export interface CreateAusenciaInput {
 }
 
 export type UpdateAusenciaInput = Partial<Omit<CreateAusenciaInput, 'idEmpleado'>>
+
+// =====================================================
+// CAPACITACIONES
+// =====================================================
+export type EstadoModulo = 'Pendiente' | 'Aprobado' | 'No aprobado'
+
+export interface Pensum {
+  id: number
+  nombre: string
+  puesto: string | null
+  idPuesto: number | null
+}
+
+export interface PensumTemaArbol {
+  id: number
+  tema: string | null
+  modalidad: string | null
+  recursos: string | null
+}
+export interface PensumModuloArbol {
+  id: number
+  modulo: string
+  objetivo: string | null
+  duracionHoras: number | null
+  capacitador: number | null
+  tipoEvaluacion: string | null
+  instrumentos: string | null
+  porcentajeAprobacion: number | null
+  vigencia: number | null
+  bono: boolean | null
+  temas: PensumTemaArbol[]
+}
+export interface PensumArbol {
+  id: number
+  nombre: string
+  puesto: string | null
+  idPuesto: number | null
+  modulos: PensumModuloArbol[]
+}
+
+export interface PensumInput {
+  nombre: string
+  puesto?: string
+  idPuesto?: number
+}
+export interface ModuloInput {
+  modulo: string
+  objetivo?: string
+  duracionHoras?: number
+  capacitador?: number
+  tipoEvaluacion?: string
+  instrumentos?: string
+  porcentajeAprobacion?: number
+  vigencia?: number
+  bono?: boolean
+}
+export interface TemaInput {
+  tema: string
+  modalidad?: string
+  recursos?: string
+}
+
+export interface Respuesta {
+  id: number
+  idPregunta: number
+  respuesta: string
+  respuestaCorrecta: boolean | null
+}
+export interface Pregunta {
+  id: number
+  idEvaluacion: number
+  pregunta: string
+  puntosPorRespuesta: number | null
+  idTema: number | null
+  respuestas: Respuesta[]
+}
+export interface Evaluacion {
+  id: number
+  idModulo: number
+  nombre: string | null
+}
+export interface EvaluacionDetalle {
+  evaluacion: Evaluacion
+  preguntas: Pregunta[]
+}
+
+export interface EvaluacionInput {
+  idModulo: number
+  nombre?: string
+}
+export interface PreguntaInput {
+  pregunta: string
+  puntosPorRespuesta?: number
+  idTema?: number
+}
+export interface RespuestaInput {
+  respuesta: string
+  respuestaCorrecta?: boolean
+}
+
+export interface EmpleadoCapResumen {
+  empleadoId: number
+  nombre: string
+  idPuesto: number | null
+  idDepartamento: number | null
+  estaActivo: boolean
+  modulosTotal: number
+  modulosAprobados: number
+  licenciaActiva: boolean
+}
+export interface AsignacionDetalleCap {
+  id: number
+  idModulo: number
+  puntuacion: number | null
+  estado: string
+  intentos: number
+}
+export interface AsignacionCap {
+  id: number
+  idPensum: number
+  tipo: string
+  licenciaActiva: boolean
+  venceLicencia: string | null
+  fechaFinaliza: string | null
+  detalles: AsignacionDetalleCap[]
+}
+export interface EmpleadoCapDetalle {
+  empleadoId: number
+  asignaciones: AsignacionCap[]
+}
+
+export interface GenerarExamenInput {
+  idAsignacionDetalle: number
+  horasVigencia?: number
+}
+export interface GenerarExamenResult {
+  token: string
+  url: string
+}
+
+export interface ExamenOpcion {
+  idRespuesta: number
+  respuesta: string
+}
+export interface ExamenPreguntaPublica {
+  idPregunta: number
+  pregunta: string
+  puntos: number | null
+  opciones: ExamenOpcion[]
+}
+export interface ExamenPublico {
+  idEvaluacion: number
+  nombre: string | null
+  preguntas: ExamenPreguntaPublica[]
+}
+export interface EnviarRespuestasInput {
+  respuestas: { idPregunta: number; idRespuesta: number | null }[]
+}
+export interface ResultadoExamen {
+  puntaje: number
+  aprobado: boolean
+  estado: EstadoModulo
+}
