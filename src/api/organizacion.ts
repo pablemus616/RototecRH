@@ -90,16 +90,13 @@ const mockPlanoApi = {
 
 const realPlanoApi = {
   async listPuestos(): Promise<PuestoPlano[]> {
-    const { data } = await rrhhApi.get<{ ok: boolean; data: PuestoPlano[] }>(
-      '/organizacion/puestos',
-    )
-    return data.data
+    // rrhhApi YA desenvuelve el envelope {ok,message,data} → `data` es el array.
+    const { data } = await rrhhApi.get<PuestoPlano[]>('/organizacion/puestos')
+    return data
   },
   async listDepartamentos(): Promise<DepartamentoPlano[]> {
-    const { data } = await rrhhApi.get<{ ok: boolean; data: DepartamentoPlano[] }>(
-      '/organizacion/departamentos',
-    )
-    return data.data
+    const { data } = await rrhhApi.get<DepartamentoPlano[]>('/organizacion/departamentos')
+    return data
   },
 }
 
