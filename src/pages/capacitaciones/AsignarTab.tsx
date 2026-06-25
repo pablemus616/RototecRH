@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Users } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -226,11 +227,9 @@ function ElegibleRow({
       onClick={onToggle}
     >
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          className="h-4 w-4 cursor-pointer rounded border-border accent-primary"
+        <Checkbox
           checked={checked}
-          onChange={onToggle}
+          onCheckedChange={onToggle}
           aria-label={`Seleccionar ${emp.nombre}`}
         />
       </TableCell>
