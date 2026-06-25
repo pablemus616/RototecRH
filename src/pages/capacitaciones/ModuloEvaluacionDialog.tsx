@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
@@ -137,6 +137,8 @@ function NombreEvaluacion({
 }) {
   const updateMut = useUpdateEvaluacion(idModulo)
   const [value, setValue] = useState(nombre)
+
+  useEffect(() => setValue(nombre), [nombre])
 
   async function onSave() {
     try {
