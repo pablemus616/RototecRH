@@ -63,3 +63,44 @@ const realApi = {
 }
 
 export const organizacionApi = USE_MOCK ? mockApi : realApi
+
+// ---------- Nuevos endpoints planos ----------
+
+export interface PuestoPlano {
+  id: number
+  nombre: string
+}
+export interface DepartamentoPlano {
+  id: number
+  nombre: string
+}
+
+const mockPlanoApi = {
+  async listPuestos(): Promise<PuestoPlano[]> {
+    return [
+      { id: 1, nombre: 'Operario' },
+      { id: 2, nombre: 'Supervisor' },
+      { id: 3, nombre: 'Gerente de Área' },
+    ]
+  },
+  async listDepartamentos(): Promise<DepartamentoPlano[]> {
+    return DEPARTAMENTOS_ROTOTEC.map((d, i) => ({ id: i + 1, nombre: d.label }))
+  },
+}
+
+const realPlanoApi = {
+  async listPuestos(): Promise<PuestoPlano[]> {
+    const { data } = await rrhhApi.get<{ ok: boolean; data: PuestoPlano[] }>(
+      '/organizacion/puestos',
+    )
+    return data.data
+  },
+  async listDepartamentos(): Promise<DepartamentoPlano[]> {
+    const { data } = await rrhhApi.get<{ ok: boolean; data: DepartamentoPlano[] }>(
+      '/organizacion/departamentos',
+    )
+    return data.data
+  },
+}
+
+export const estructuraPlanaApi = USE_MOCK ? mockPlanoApi : realPlanoApi

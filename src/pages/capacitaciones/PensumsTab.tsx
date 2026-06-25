@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
 import { Button } from '@/components/ui/button'
@@ -41,7 +41,7 @@ const norm = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 export default function PensumsTab() {
-  const { data, isLoading, isError } = usePensums()
+  const { data, isLoading, isError, isFetching, refetch } = usePensums()
   const [search, setSearch] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Pensum | undefined>(undefined)
@@ -90,6 +90,16 @@ export default function PensumsTab() {
           <p className="text-sm text-muted-foreground">
             {filtered.length} pensum{filtered.length === 1 ? '' : 's'}
           </p>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            aria-label="Actualizar"
+            title="Actualizar"
+            disabled={isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nuevo pensum

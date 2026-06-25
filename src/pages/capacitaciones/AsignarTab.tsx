@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search, Users } from 'lucide-react'
+import { RefreshCw, Search, Users } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -59,7 +59,7 @@ export default function AsignarTab() {
     puesto: puestoId ?? undefined,
     departamento: departamentoId ?? undefined,
   }
-  const { data, isLoading, isError } = useElegibles(filtros)
+  const { data, isLoading, isError, isFetching, refetch } = useElegibles(filtros)
 
   const elegibles = useMemo(() => {
     const all = data ?? []
@@ -166,6 +166,16 @@ export default function AsignarTab() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2 sm:mt-5">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            aria-label="Actualizar"
+            title="Actualizar"
+            disabled={isFetching}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
           {selected.size > 0 && (
             <Badge variant="secondary">{selected.size} seleccionado(s)</Badge>
           )}

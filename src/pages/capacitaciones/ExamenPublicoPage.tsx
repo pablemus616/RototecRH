@@ -9,7 +9,6 @@ import type {
 } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -187,20 +186,15 @@ export default function ExamenPublicoPage() {
         {phase === 'enviado' && resultado && (
           <>
             <CardHeader>
-              <CardTitle>Resultado</CardTitle>
+              <CardTitle>Examen enviado</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4 text-center">
-                <p className="text-4xl font-bold">Puntaje: {resultado.puntaje}</p>
-                <Badge variant={resultado.aprobado ? 'success' : 'destructive'} className="text-sm px-4 py-1">
-                  {resultado.estado}
-                </Badge>
+                <p className="text-4xl">✅</p>
+                <p className="text-lg font-medium">¡Gracias!</p>
                 <p className="text-muted-foreground">
-                  {resultado.aprobado
-                    ? '¡Felicidades! Has aprobado el examen.'
-                    : 'No alcanzaste el puntaje mínimo. Consulta con tu supervisor.'}
+                  Tu evaluación fue registrada. Ya podés cerrar esta página.
                 </p>
-                <p className="text-sm text-muted-foreground">Puedes cerrar esta pestaña.</p>
               </div>
             </CardContent>
           </>

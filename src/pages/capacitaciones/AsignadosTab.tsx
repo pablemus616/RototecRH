@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import { RefreshCw, Search } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -45,7 +45,7 @@ export default function AsignadosTab() {
     departamento: departamentoId != null ? String(departamentoId) : undefined,
     estado: estado === 'todos' ? undefined : estado,
   }
-  const { data, isLoading, isError } = useEmpleadosCap(filtros)
+  const { data, isLoading, isError, isFetching, refetch } = useEmpleadosCap(filtros)
 
   const empleados = useMemo(() => {
     const all = data ?? []
@@ -112,6 +112,18 @@ export default function AsignadosTab() {
               className="pl-8"
             />
           </div>
+        </div>
+        <div className="flex flex-col gap-1 sm:mt-5">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            aria-label="Actualizar"
+            title="Actualizar"
+            disabled={isFetching}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 

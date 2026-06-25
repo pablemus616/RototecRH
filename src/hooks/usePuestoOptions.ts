@@ -1,57 +1,34 @@
-import { useMemo } from 'react'
-import { useArbol } from '@/hooks/useArbol'
+import { useQuery } from '@tanstack/react-query'
+import { estructuraPlanaApi } from '@/api/organizacion'
 import type { NameOption } from '@/components/ui/name-combobox'
 
+const QK = {
+  puestos: ['org', 'puestos'] as const,
+  departamentos: ['org', 'departamentos'] as const,
+}
+
 /**
- * Aplana el árbol organizacional completo (sin empresaId) a lista de puestos únicos
- * ordenados alfabéticamente.
+ * Obtiene la lista plana de puestos desde GET /rrhh/organizacion/puestos.
  */
 export function usePuestoOptions(): { options: NameOption[]; isLoading: boolean } {
-  const { data, isLoading } = useArbol()
-
-  const options = useMemo<NameOption[]>(() => {
-    if (!data) return []
-    const seen = new Set<number>()
-    const all: NameOption[] = []
-    for (const empresa of data) {
-      for (const depto of empresa.departamentos) {
-        for (const sub of depto.subdepartamentos) {
-          for (const puesto of sub.puestos) {
-            if (!seen.has(puesto.id)) {
-              seen.add(puesto.id)
-              all.push({ id: puesto.id, nombre: puesto.nombre })
-            }
-          }
-        }
-      }
-    }
-    return all.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-  }, [data])
-
+  const { data, isLoading } = useQuery({
+    queryKey: QK.puestos,
+    queryFn: () => estructuraPlanaApi.listPuestos(),
+    staleTime: 5 * 60 * 1000,
+  })
+  const options: NameOption[] = (data ?? []).map((p) => ({ id: p.id, nombre: p.nombre }))
   return { options, isLoading }
 }
 
 /**
- * Aplana el árbol organizacional completo a lista de departamentos únicos
- * ordenados alfabéticamente.
+ * Obtiene la lista plana de departamentos desde GET /rrhh/organizacion/departamentos.
  */
 export function useDepartamentoOptions(): { options: NameOption[]; isLoading: boolean } {
-  const { data, isLoading } = useArbol()
-
-  const options = useMemo<NameOption[]>(() => {
-    if (!data) return []
-    const seen = new Set<number>()
-    const all: NameOption[] = []
-    for (const empresa of data) {
-      for (const depto of empresa.departamentos) {
-        if (!seen.has(depto.id)) {
-          seen.add(depto.id)
-          all.push({ id: depto.id, nombre: depto.nombre })
-        }
-      }
-    }
-    return all.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-  }, [data])
-
+  const { data, isLoading } = useQuery({
+    queryKey: QK.departamentos,
+    queryFn: () => estructuraPlanaApi.listDepartamentos(),
+    staleTime: 5 * 60 * 1000,
+  })
+  const options: NameOption[] = (data ?? []).map((d) => ({ id: d.id, nombre: d.nombre }))
   return { options, isLoading }
 }
