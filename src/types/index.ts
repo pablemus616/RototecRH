@@ -837,7 +837,7 @@ export interface ResultadoExamen {
 }
 
 // ─── Capacitaciones: elegibles & reabrir ─────────────────────────────────────
-export interface EmpleadoElegible {
+export interface EmpleadoCapElegible {
   empleadoId: number
   nombre: string
   idPuesto: number

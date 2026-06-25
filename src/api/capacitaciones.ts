@@ -11,7 +11,7 @@ import type {
   EmpleadoCapResumen, EmpleadoCapDetalle,
   GenerarExamenInput, GenerarExamenResult,
   ExamenPublico, EnviarRespuestasInput, ResultadoExamen, EstadoModulo,
-  EmpleadoElegible, ReabrirInput, ReabrirResult,
+  EmpleadoCapElegible, ReabrirInput, ReabrirResult,
   AsignacionCap, AsignacionDetalleCap,
 } from '@/types'
 
@@ -254,7 +254,7 @@ const mockApi = {
   },
 
   // -- Elegibles --
-  async listElegibles(filtros?: { puesto?: number; departamento?: number }): Promise<EmpleadoElegible[]> {
+  async listElegibles(filtros?: { puesto?: number; departamento?: number }): Promise<EmpleadoCapElegible[]> {
     await delay()
     const emps = read<EmpleadoRaw>(K.empleados, seedEmpleadosRaw)
     const pensums = read<Pensum>(K.pensums, seedPensums)
@@ -451,7 +451,7 @@ const realApi: typeof mockApi = {
   async createRespuesta(idPregunta, input) { const { data } = await api.post<Respuesta>(`/capacitaciones/preguntas/${idPregunta}/respuestas`, input); return data },
   async deleteRespuesta(id) { const { data } = await api.delete<{ id: number }>(`/capacitaciones/respuestas/${id}`); return data },
   async listElegibles(filtros) {
-    const { data } = await api.get<EmpleadoElegible[]>('/capacitaciones/empleados/elegibles', { params: filtros })
+    const { data } = await api.get<EmpleadoCapElegible[]>('/capacitaciones/empleados/elegibles', { params: filtros })
     return data
   },
   async asignarPrimaria(empleadoIds) { const { data } = await api.post<{ ok: true }>('/capacitaciones/asignaciones', { empleadoIds }); return data },

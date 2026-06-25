@@ -30,7 +30,7 @@ import {
   usePensums,
 } from '@/hooks/useCapacitaciones'
 import { asignacionSecundariaSchema } from '@/lib/validators'
-import type { EmpleadoElegible } from '@/types'
+import type { EmpleadoCapElegible } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -89,7 +89,7 @@ export default function AsignarTab() {
   const someSelected = selected.size > 0 && selected.size < elegibles.length
 
   // Secundaria dialog state
-  const [secundariaFor, setSecundariaFor] = useState<EmpleadoElegible | undefined>()
+  const [secundariaFor, setSecundariaFor] = useState<EmpleadoCapElegible | undefined>()
 
   return (
     <div className="space-y-4">
@@ -216,7 +216,7 @@ function ElegibleRow({
   onToggle,
   onSecundaria,
 }: {
-  emp: EmpleadoElegible
+  emp: EmpleadoCapElegible
   checked: boolean
   onToggle: () => void
   onSecundaria: () => void
@@ -257,7 +257,7 @@ function SecundariaDialog({
   open,
   onClose,
 }: {
-  emp: EmpleadoElegible
+  emp: EmpleadoCapElegible
   open: boolean
   onClose: () => void
 }) {

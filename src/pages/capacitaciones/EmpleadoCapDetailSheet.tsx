@@ -42,6 +42,8 @@ import {
   useReabrir,
 } from '@/hooks/useCapacitaciones'
 import { formatDate } from '@/lib/utils'
+import { generarDiplomaDocx } from '@/lib/diploma'
+import { useEmpleado } from '@/hooks/useEmpleados'
 import {
   asignacionSecundariaSchema,
   generarExamenSchema,
@@ -81,6 +83,7 @@ export function EmpleadoCapDetailSheet({ empleadoId, open, onOpenChange }: Props
           <p className="mt-6 text-sm text-destructive">Error al cargar el detalle</p>
         ) : (
           <div className="mt-6 space-y-8">
+            <DiplomaButton empleadoId={empleadoId} asignaciones={data.asignaciones} />
             <PrimariaSection empleadoId={empleadoId} />
             <SecundariaSection empleadoId={empleadoId} />
             <div>
@@ -110,6 +113,75 @@ function SectionTitle({ children }: { children: ReactNode }) {
       </h3>
       <Separator className="mb-3" />
     </>
+  )
+}
+
+function DiplomaButton({
+  empleadoId,
+  asignaciones,
+}: {
+  empleadoId: number
+  asignaciones: AsignacionCap[]
+}) {
+  const { data: empleado } = useEmpleado(String(empleadoId))
+  const [generando, setGenerando] = useState(false)
+
+  const detalles = asignaciones.flatMap((a) => a.detalles)
+  const todosAprobados =
+    detalles.length > 0 &&
+    detalles.every((d) => d.estado.toLowerCase() === 'aprobado')
+
+  async function onGenerar() {
+    setGenerando(true)
+    try {
+      const partes = [empleado?.primerNombre, empleado?.primerApellido].filter(
+        Boolean,
+      )
+      const nombreCompleto =
+        [
+          empleado?.primerNombre,
+          empleado?.segundoNombre,
+          empleado?.primerApellido,
+          empleado?.segundoApellido,
+        ]
+          .filter(Boolean)
+          .join(' ') ||
+        empleado?.nombre ||
+        String(empleadoId)
+      const nombreCorto = partes.length ? partes.join(' ') : nombreCompleto
+      await generarDiplomaDocx({
+        nombreCorto,
+        nombreCompleto,
+        codigoEmpleado: empleado?.id ? String(empleado.id) : String(empleadoId),
+        puesto: empleado?.puesto ?? '',
+      })
+      toast.success('Diploma generado')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo generar el diploma')
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  return (
+    <div>
+      <SectionTitle>Diploma</SectionTitle>
+      <Button
+        size="sm"
+        onClick={onGenerar}
+        disabled={!todosAprobados || generando}
+        title={
+          todosAprobados ? undefined : 'Todos los módulos deben estar aprobados'
+        }
+      >
+        Generar diploma
+      </Button>
+      {!todosAprobados && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Todos los módulos deben estar aprobados.
+        </p>
+      )}
+    </div>
   )
 }
 
