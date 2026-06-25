@@ -11,6 +11,8 @@ import type {
   EmpleadoCapResumen, EmpleadoCapDetalle,
   GenerarExamenInput, GenerarExamenResult,
   ExamenPublico, EnviarRespuestasInput, ResultadoExamen, EstadoModulo,
+  EmpleadoElegible, ReabrirInput, ReabrirResult,
+  AsignacionCap, AsignacionDetalleCap,
 } from '@/types'
 
 // ============ Storage (mock) ============
@@ -23,6 +25,7 @@ const K = {
   respuestas: 'rototec.cap.respuestas.v1',
   empleados: 'rototec.cap.empleados.v1',
   tokens: 'rototec.cap.tokens.v1',
+  asignaciones: 'rototec.cap.asignaciones.v1',
 }
 function read<T>(key: string, seed: () => T[] = () => []): T[] {
   if (typeof window === 'undefined') return []
@@ -43,11 +46,70 @@ function delay(ms = 120) { return new Promise((r) => setTimeout(r, ms)) }
 interface ModuloRow extends ModuloInput { id: number; idPensum: number }
 interface TemaRow extends TemaInput { id: number; idModulo: number }
 
+// Seed empleados (raw — not EmpleadoCapResumen, that is derived)
+interface EmpleadoRaw {
+  empleadoId: number
+  nombre: string
+  idPuesto: number
+  idDepartamento: number
+  estaActivo: boolean
+}
+
+// AsignacionRow = header stored in rototec.cap.asignaciones.v1
+interface AsignacionRow {
+  id: number
+  empleadoId: number
+  idPensum: number
+  tipo: 'primaria' | 'secundaria'
+  licenciaActiva: boolean
+  venceLicencia: string | null
+  fechaFinaliza: string | null
+  detalles: AsignacionDetalleCap[]
+}
+
 function seedPensums(): Pensum[] {
-  return [{ id: 1, nombre: 'Inducción Operario', puesto: 'Operario', idPuesto: null }]
+  return [{ id: 1, nombre: 'Inducción Operario', puesto: 'Operario', idPuesto: 1 }]
 }
 function seedModulos(): ModuloRow[] {
-  return [{ id: 1, idPensum: 1, modulo: 'Seguridad básica', objetivo: 'Conocer EPP', porcentajeAprobacion: 70, bono: false }]
+  return [
+    { id: 1, idPensum: 1, modulo: 'Seguridad básica', objetivo: 'Conocer EPP', porcentajeAprobacion: 70, bono: false },
+    { id: 2, idPensum: 1, modulo: 'Manejo de maquinaria', objetivo: 'Operar con seguridad', porcentajeAprobacion: 75, bono: false },
+    { id: 3, idPensum: 1, modulo: 'Calidad e inocuidad', objetivo: 'Estándares de calidad', porcentajeAprobacion: 70, bono: false },
+  ]
+}
+function seedEmpleadosRaw(): EmpleadoRaw[] {
+  return [
+    { empleadoId: 1, nombre: 'María García', idPuesto: 1, idDepartamento: 1, estaActivo: true },
+    { empleadoId: 2, nombre: 'Juan Carlos Pérez', idPuesto: 1, idDepartamento: 1, estaActivo: true },
+    { empleadoId: 3, nombre: 'Ana Lucía Hernández', idPuesto: 2, idDepartamento: 2, estaActivo: false },
+    { empleadoId: 4, nombre: 'Roberto Morales', idPuesto: 1, idDepartamento: 1, estaActivo: true },
+    { empleadoId: 5, nombre: 'Lucia Ajú Choc', idPuesto: 1, idDepartamento: 1, estaActivo: true },
+  ]
+}
+function seedAsignaciones(): AsignacionRow[] {
+  // empleadoId=1 asignado: módulos mixtos (2 Aprobado, 1 Pendiente)
+  // empleadoId=4 asignado: todos Aprobado (para diploma)
+  // empleadoId=2 y 5: elegibles (sin asignación primaria)
+  return [
+    {
+      id: 1, empleadoId: 1, idPensum: 1, tipo: 'primaria', licenciaActiva: false,
+      venceLicencia: null, fechaFinaliza: null,
+      detalles: [
+        { id: 101, idModulo: 1, puntuacion: 85, estado: 'Aprobado', intentos: 1 },
+        { id: 102, idModulo: 2, puntuacion: 90, estado: 'Aprobado', intentos: 2 },
+        { id: 103, idModulo: 3, puntuacion: null, estado: 'Pendiente', intentos: 0 },
+      ],
+    },
+    {
+      id: 2, empleadoId: 4, idPensum: 1, tipo: 'primaria', licenciaActiva: true,
+      venceLicencia: '2027-06-01', fechaFinaliza: '2026-05-15',
+      detalles: [
+        { id: 201, idModulo: 1, puntuacion: 95, estado: 'Aprobado', intentos: 1 },
+        { id: 202, idModulo: 2, puntuacion: 88, estado: 'Aprobado', intentos: 1 },
+        { id: 203, idModulo: 3, puntuacion: 92, estado: 'Aprobado', intentos: 1 },
+      ],
+    },
+  ]
 }
 
 // ============ Mock helpers to build trees ============
@@ -65,6 +127,33 @@ function buildPensumArbol(p: Pensum): PensumArbol {
     })),
   }))
   return { id: p.id, nombre: p.nombre, puesto: p.puesto, idPuesto: p.idPuesto, modulos: modulosArbol }
+}
+
+/** Recompute licenciaActiva for a header: all detalles Aprobado */
+function recomputeLicencia(header: AsignacionRow): void {
+  if (header.detalles.length > 0 && header.detalles.every((d) => d.estado === 'Aprobado')) {
+    header.licenciaActiva = true
+  } else {
+    header.licenciaActiva = false
+    header.venceLicencia = null
+  }
+}
+
+/** Build EmpleadoCapResumen from raw+asignaciones stores */
+function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[]): EmpleadoCapResumen {
+  const empAsigs = asigs.filter((a) => a.empleadoId === emp.empleadoId)
+  const allDetalles = empAsigs.flatMap((a) => a.detalles)
+  const licenciaActiva = empAsigs.some((a) => a.licenciaActiva)
+  return {
+    empleadoId: emp.empleadoId,
+    nombre: emp.nombre,
+    idPuesto: emp.idPuesto,
+    idDepartamento: emp.idDepartamento,
+    estaActivo: emp.estaActivo,
+    modulosTotal: allDetalles.length,
+    modulosAprobados: allDetalles.filter((d) => d.estado === 'Aprobado').length,
+    licenciaActiva,
+  }
 }
 
 // ============ MOCK API ============
@@ -163,20 +252,158 @@ const mockApi = {
   async deleteRespuesta(id: number): Promise<{ id: number }> {
     await delay(); write(K.respuestas, read<Respuesta>(K.respuestas).filter((r) => r.id !== id)); return { id }
   },
+
+  // -- Elegibles --
+  async listElegibles(filtros?: { puesto?: number; departamento?: number }): Promise<EmpleadoElegible[]> {
+    await delay()
+    const emps = read<EmpleadoRaw>(K.empleados, seedEmpleadosRaw)
+    const pensums = read<Pensum>(K.pensums, seedPensums)
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    // Set of empleadoIds that already have a primaria assignment
+    const withPrimaria = new Set(asigs.filter((a) => a.tipo === 'primaria').map((a) => a.empleadoId))
+    // idPuestos with a pensum
+    const puestosConPensum = new Set(pensums.map((p) => p.idPuesto).filter((id): id is number => id !== null))
+
+    return emps
+      .filter((e) => {
+        if (!e.estaActivo) return false
+        if (!puestosConPensum.has(e.idPuesto)) return false
+        if (withPrimaria.has(e.empleadoId)) return false
+        if (filtros?.puesto !== undefined && e.idPuesto !== filtros.puesto) return false
+        if (filtros?.departamento !== undefined && e.idDepartamento !== filtros.departamento) return false
+        return true
+      })
+      .map((e) => {
+        const pensum = pensums.find((p) => p.idPuesto === e.idPuesto)!
+        return { empleadoId: e.empleadoId, nombre: e.nombre, idPuesto: e.idPuesto, idPensum: pensum.id }
+      })
+  },
+
   // -- Asignaciones --
-  async asignarPrimaria(empleadoIds: number[]): Promise<{ ok: true }> { await delay(); void empleadoIds; return { ok: true } },
-  async asignarSecundaria(empleadoId: number, idPensum: number): Promise<{ ok: true }> { await delay(); void empleadoId; void idPensum; return { ok: true } },
+  async asignarPrimaria(empleadoIds: number[]): Promise<{ ok: true }> {
+    await delay()
+    const pensums = read<Pensum>(K.pensums, seedPensums)
+    const modulos = read<ModuloRow>(K.modulos, seedModulos)
+    const emps = read<EmpleadoRaw>(K.empleados, seedEmpleadosRaw)
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    let nextAsigId = asigs.reduce((m, a) => Math.max(m, a.id), 0) + 1
+    let nextDetalleId = asigs.flatMap((a) => a.detalles).reduce((m, d) => Math.max(m, d.id), 0) + 1
+
+    for (const empId of empleadoIds) {
+      const emp = emps.find((e) => e.empleadoId === empId)
+      if (!emp) continue
+      const pensum = pensums.find((p) => p.idPuesto === emp.idPuesto)
+      if (!pensum) continue
+      const pensumModulos = modulos.filter((m) => m.idPensum === pensum.id)
+      const detalles: AsignacionDetalleCap[] = pensumModulos.map((m) => ({
+        id: nextDetalleId++,
+        idModulo: m.id,
+        puntuacion: null,
+        estado: 'Pendiente',
+        intentos: 0,
+      }))
+      asigs.push({
+        id: nextAsigId++,
+        empleadoId: empId,
+        idPensum: pensum.id,
+        tipo: 'primaria',
+        licenciaActiva: false,
+        venceLicencia: null,
+        fechaFinaliza: null,
+        detalles,
+      })
+    }
+    write(K.asignaciones, asigs)
+    return { ok: true }
+  },
+
+  async asignarSecundaria(empleadoId: number, idPensum: number): Promise<{ ok: true }> {
+    await delay()
+    const modulos = read<ModuloRow>(K.modulos, seedModulos)
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    const nextAsigId = asigs.reduce((m, a) => Math.max(m, a.id), 0) + 1
+    let nextDetalleId = asigs.flatMap((a) => a.detalles).reduce((m, d) => Math.max(m, d.id), 0) + 1
+    const pensumModulos = modulos.filter((m) => m.idPensum === idPensum)
+    const detalles: AsignacionDetalleCap[] = pensumModulos.map((m) => ({
+      id: nextDetalleId++,
+      idModulo: m.id,
+      puntuacion: null,
+      estado: 'Pendiente',
+      intentos: 0,
+    }))
+    asigs.push({
+      id: nextAsigId,
+      empleadoId,
+      idPensum,
+      tipo: 'secundaria',
+      licenciaActiva: false,
+      venceLicencia: null,
+      fechaFinaliza: null,
+      detalles,
+    })
+    write(K.asignaciones, asigs)
+    return { ok: true }
+  },
+
+  // -- Reabrir --
+  async reabrir(idAsignacion: number, input?: ReabrirInput): Promise<ReabrirResult> {
+    await delay()
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    const idx = asigs.findIndex((a) => a.id === idAsignacion)
+    if (idx === -1) throw new Error('Asignación no encontrada')
+    const header = asigs[idx]
+    const idModulosSet = input?.idModulos ? new Set(input.idModulos) : null
+    let reseteados = 0
+    header.detalles = header.detalles.map((d) => {
+      if (idModulosSet === null || idModulosSet.has(d.idModulo)) {
+        reseteados++
+        return { ...d, estado: 'Pendiente', puntuacion: null, intentos: 0 }
+      }
+      return d
+    })
+    recomputeLicencia(header)
+    write(K.asignaciones, asigs)
+    return {
+      asignacionId: idAsignacion,
+      reseteados,
+      licenciaActiva: header.licenciaActiva,
+      venceLicencia: header.venceLicencia,
+    }
+  },
+
   // -- Empleados --
   async listEmpleados(filtros?: { puesto?: string; departamento?: string; estado?: string }): Promise<EmpleadoCapResumen[]> {
-    await delay(); void filtros
-    return read<EmpleadoCapResumen>(K.empleados, () => [
-      { empleadoId: 1, nombre: 'María García', idPuesto: 1, idDepartamento: 1, estaActivo: true, modulosTotal: 3, modulosAprobados: 1, licenciaActiva: false },
-    ])
+    await delay()
+    const emps = read<EmpleadoRaw>(K.empleados, seedEmpleadosRaw)
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    const withAsig = new Set(asigs.map((a) => a.empleadoId))
+    return emps
+      .filter((e) => {
+        if (!withAsig.has(e.empleadoId)) return false
+        if (filtros?.estado === 'activo' && !e.estaActivo) return false
+        if (filtros?.estado === 'inactivo' && e.estaActivo) return false
+        return true
+      })
+      .map((e) => buildResumen(e, asigs))
   },
+
   async getEmpleado(empleadoId: number): Promise<EmpleadoCapDetalle> {
     await delay()
-    return { empleadoId, asignaciones: [] }
+    const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    const empAsigs: AsignacionCap[] = asigs
+      .filter((a) => a.empleadoId === empleadoId)
+      .map((a) => ({
+        id: a.id,
+        idPensum: a.idPensum,
+        tipo: a.tipo,
+        licenciaActiva: a.licenciaActiva,
+        venceLicencia: a.venceLicencia,
+        fechaFinaliza: a.fechaFinaliza,
+        detalles: a.detalles,
+      }))
+    return { empleadoId, asignaciones: empAsigs }
   },
+
   // -- Examen (admin genera) --
   async generarExamen(input: GenerarExamenInput): Promise<GenerarExamenResult> {
     await delay()
@@ -223,8 +450,16 @@ const realApi: typeof mockApi = {
   async deletePregunta(id) { const { data } = await api.delete<{ id: number }>(`/capacitaciones/preguntas/${id}`); return data },
   async createRespuesta(idPregunta, input) { const { data } = await api.post<Respuesta>(`/capacitaciones/preguntas/${idPregunta}/respuestas`, input); return data },
   async deleteRespuesta(id) { const { data } = await api.delete<{ id: number }>(`/capacitaciones/respuestas/${id}`); return data },
+  async listElegibles(filtros) {
+    const { data } = await api.get<EmpleadoElegible[]>('/capacitaciones/empleados/elegibles', { params: filtros })
+    return data
+  },
   async asignarPrimaria(empleadoIds) { const { data } = await api.post<{ ok: true }>('/capacitaciones/asignaciones', { empleadoIds }); return data },
   async asignarSecundaria(empleadoId, idPensum) { const { data } = await api.post<{ ok: true }>('/capacitaciones/asignaciones/secundaria', { empleadoId, idPensum }); return data },
+  async reabrir(idAsignacion, input) {
+    const { data } = await api.post<ReabrirResult>(`/capacitaciones/asignaciones/${idAsignacion}/reabrir`, input ?? {})
+    return data
+  },
   async listEmpleados(filtros) {
     const { data } = await api.get<EmpleadoCapResumen[]>('/capacitaciones/empleados', { params: filtros })
     return data

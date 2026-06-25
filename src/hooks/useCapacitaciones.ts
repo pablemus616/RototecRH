@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { capacitacionesApi as cap } from '@/api/capacitaciones'
 import type {
   PensumInput, ModuloInput, TemaInput, EvaluacionInput, PreguntaInput, RespuestaInput,
-  GenerarExamenInput,
+  GenerarExamenInput, ReabrirInput,
 } from '@/types'
 
 const QK = {
@@ -12,6 +12,8 @@ const QK = {
   empleados: (f?: { puesto?: string; departamento?: string; estado?: string }) =>
     ['cap', 'empleados', f ?? {}] as const,
   empleado: (id: number) => ['cap', 'empleados', id] as const,
+  elegibles: (f?: { puesto?: number; departamento?: number }) =>
+    ['cap', 'elegibles', f ?? {}] as const,
 }
 
 // ---------- Pensums ----------
@@ -106,4 +108,23 @@ export function useAsignarSecundaria(empleadoId: number) {
 }
 export function useGenerarExamen() {
   return useMutation({ mutationFn: (input: GenerarExamenInput) => cap.generarExamen(input) })
+}
+
+// ---------- Elegibles ----------
+export function useElegibles(filtros?: { puesto?: number; departamento?: number }) {
+  return useQuery({ queryKey: QK.elegibles(filtros), queryFn: () => cap.listElegibles(filtros) })
+}
+
+// ---------- Reabrir ----------
+export function useReabrir(empleadoId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ idAsignacion, input }: { idAsignacion: number; input?: ReabrirInput }) =>
+      cap.reabrir(idAsignacion, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.empleado(empleadoId) })
+      qc.invalidateQueries({ queryKey: ['cap', 'empleados'] })
+      qc.invalidateQueries({ queryKey: ['cap', 'elegibles'] })
+    },
+  })
 }

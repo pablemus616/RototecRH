@@ -835,3 +835,22 @@ export interface ResultadoExamen {
   aprobado: boolean
   estado: EstadoModulo
 }
+
+// ─── Capacitaciones: elegibles & reabrir ─────────────────────────────────────
+export interface EmpleadoElegible {
+  empleadoId: number
+  nombre: string
+  idPuesto: number
+  idPensum: number
+}
+
+export interface ReabrirInput {
+  idModulos?: number[]
+}
+
+export interface ReabrirResult {
+  asignacionId: number
+  reseteados: number
+  licenciaActiva: boolean
+  venceLicencia: string | null
+}
