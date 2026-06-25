@@ -138,8 +138,8 @@ export class PensumModulo {
   @Column({ name: 'Vigencia', type: 'int', nullable: true })
   vigencia: number | null; // meses de vigencia de la licencia
 
-  @Column({ name: 'Bono', type: 'float', nullable: true })
-  bono: number | null;
+  @Column({ name: 'Bono', type: 'bit', nullable: true })
+  bono: boolean | null; // flag: el módulo paga bono al capacitador (montos en tBonosPorIntento — Plan 2)
 }
 ```
 
@@ -347,7 +347,7 @@ export class UpdatePensumDto {
 
 `modulo.dto.ts`:
 ```typescript
-import { IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, Max } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, Max } from 'class-validator';
 
 export class CreateModuloDto {
   @IsString() @MaxLength(255)
@@ -374,8 +374,8 @@ export class CreateModuloDto {
   @IsOptional() @IsInt() @Min(0)
   vigencia?: number; // meses
 
-  @IsOptional() @IsNumber()
-  bono?: number;
+  @IsOptional() @IsBoolean()
+  bono?: boolean;
 }
 
 export class UpdateModuloDto {
@@ -403,8 +403,8 @@ export class UpdateModuloDto {
   @IsOptional() @IsInt() @Min(0)
   vigencia?: number;
 
-  @IsOptional() @IsNumber()
-  bono?: number;
+  @IsOptional() @IsBoolean()
+  bono?: boolean;
 }
 ```
 

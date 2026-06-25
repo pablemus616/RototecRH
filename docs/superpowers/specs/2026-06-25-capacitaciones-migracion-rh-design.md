@@ -57,15 +57,16 @@ RototecRH (front)                MS recursos-humanos (NestJS)
 
 Todas las tablas nuevas se crean por SQL idempotente (`IF NOT EXISTS ... CREATE TABLE`) con constraints nombrados, en `src/capacitaciones/sql/`.
 
-### 4.3 Regla de aprobación / licencia / bono (a confirmar contra el trigger)
+### 4.3 Regla de aprobación / licencia / bono (CONFIRMADA — extraída de los triggers legacy)
 
-Regla definida a partir del esquema observado, **a validar** contra la salida del query de triggers/SP antes de implementar:
+Lógica que hoy vive en 5 triggers de la BD y que el MS reimplementa en código (single-writer, sin triggers):
 
-- **Aprobado:** un módulo se aprueba cuando `puntuacion >= tPensumDetalle.PorcentajeAprobacion`. Al aprobar: `estado='Aprobado'`, `aprobado_en=hoy`.
-- **Licencia:** al aprobar el módulo, `licencia_activa=1` y `vence_licencia = aprobado_en + tPensumDetalle.Vigencia` (meses). Una licencia se considera **vencida** cuando `vence_licencia < hoy` → candidata a reasignación.
-- **Bono:** al aprobar, `bono = tPensumDetalle.Bono`. (El cálculo agregado por capacitador del legacy vivía en `tBonosPorCapacitador` vía trigger; se reimplementa en el código según la regla confirmada.)
-
-> **Acción pendiente (bloquea el plan):** correr el query de `sys.triggers`/`sys.sql_modules` sobre `tCapacitados`, `tCapacitadosDetalle`, `tEvaluados`, `tEvaluadosDetalle`, `tBonosPorCapacitador` y ajustar esta sección con la regla exacta (umbral, redondeos, base del bono, cómo se acumula por capacitador).
+- **Nota del módulo** (`trg_ActualizarNotaCapacitacion` sobre `tEvaluados`): al registrar un intento, `tCapacitadosDetalle.Puntuacion = tEvaluados.PuntajeTotal` del módulo correspondiente (sobrescribe con el último intento).
+- **Estado del módulo** (`trg_UpdateEstadoCapacitacion` sobre `tCapacitadosDetalle`): `Pendiente` si `Puntuacion IS NULL`; `Aprobado` si `Puntuacion >= tPensumDetalle.PorcentajeAprobacion`; si no, `No aprobado`. (`trg_RecalcularEstadoPorCambioDePorcentaje` recalcula si cambia el `PorcentajeAprobacion` del módulo — en el MS, recalcular al editar el módulo.)
+- **Licencia** (`trg_FinalizaCapacitacionSiTodoAprobado` sobre `tCapacitadosDetalle`): a nivel **empleado-capacitación** (header `tCapacitados`, no por módulo). Se activa cuando **TODOS** los módulos del capacitado están `Aprobado` (`count>0 && count == aprobados`): `LicenciaActiva=1`, `FechaFinalizaCapacitacion=now`, `VencimientoLicencia = now + MIN(Vigencia)` meses entre los módulos. Si deja de cumplirse (algún módulo no aprobado), se apaga: `LicenciaActiva=0`, fechas `NULL`. **Vencida** = `VencimientoLicencia < hoy` → candidata a reasignación.
+  - **Ajuste al §4.2:** `licencia_activa`/`vence_licencia` van en el header **`tCapAsignacion`** (no en `tCapAsignacionDetalle`); el detalle solo lleva `puntuacion`, `estado`, `intentos`.
+- **Bono al CAPACITADOR** (`trg_CalcularBonoCapacitador` sobre `tEvaluados`): `tPensumDetalle.Bono` es un **BIT/flag** (módulo bono-elegible), NO un monto. Si `Bono=1`, el trainee aprobó (`PuntajeTotal >= PorcentajeAprobacion`), tomó **≤3 intentos** y no hay bono `Pagado=1` previo para ese (capacitado, módulo): se inserta en `tBonosPorCapacitador` el monto = `tBonosPorIntento.{PrimerIntento|SegundoIntento|TercerIntento}` según el número de intento. El capacitador sale de `tPensumDetalle.Capacitador → tEmpleados.id`.
+  - Tablas extra para el bono (Plan 2): `tBonosPorIntento` (config de montos por # de intento) y `tBonosPorCapacitador` (ledger; reconstruir limpio con `empleado_id`).
 
 ## 5. Endpoints (`/rrhh/capacitaciones`)
 
