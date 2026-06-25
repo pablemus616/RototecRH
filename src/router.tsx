@@ -15,9 +15,12 @@ import BonificacionesPage from '@/pages/bonificaciones/BonificacionesPage'
 import PlanillaPage from '@/pages/planilla/PlanillaPage'
 import HorasExtraPage from '@/pages/horas-extra/HorasExtraPage'
 import CargaTurnosPage from '@/pages/carga-turnos/CargaTurnosPage'
+import CapacitacionesPage from '@/pages/capacitaciones/CapacitacionesPage'
+import ExamenPublicoPage from '@/pages/capacitaciones/ExamenPublicoPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/examen/:token', element: <ExamenPublicoPage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -39,6 +42,7 @@ export const router = createBrowserRouter([
           { path: 'planilla', element: <PlanillaPage /> },
           { path: 'horas-extra', element: <HorasExtraPage /> },
           { path: 'carga-turnos', element: <CargaTurnosPage /> },
+          { path: 'capacitaciones', element: <CapacitacionesPage /> },
           { path: '*', element: <Navigate to="/empleados" replace /> },
         ],
       },

@@ -404,12 +404,12 @@ export const WIZARD_STEP_FIELDS: (keyof EmpleadoCreateValues)[][] = [
 // =====================================================
 // CAPACITACIONES
 // =====================================================
-const optStr = (max = 200) => z.string().max(max).optional().or(z.literal(''))
+const optStrCap = (max = 200) => z.string().max(max).optional().or(z.literal(''))
 
 export const pensumSchema = z.object({
   nombre: z.string().min(1, 'Requerido').max(120),
   idPuesto: z.coerce.number().int().positive().optional(),
-  puesto: optStr(120),
+  puesto: optStrCap(120),
 })
 export type PensumFormValues = z.infer<typeof pensumSchema>
 

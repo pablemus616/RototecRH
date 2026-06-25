@@ -9,6 +9,7 @@ import {
   Gift,
   Network,
   Calculator,
+  GraduationCap,
   LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,7 @@ const NAV = [
   { to: '/bonificaciones', label: 'Bonificaciones', icon: Gift },
   { to: '/planilla', label: 'Planilla', icon: FileSpreadsheet },
   { to: '/horas-extra', label: 'Horas Extra', icon: Calculator },
+  { to: '/capacitaciones', label: 'Capacitaciones', icon: GraduationCap },
 ]
 
 function getActiveLabel(pathname: string): string {
