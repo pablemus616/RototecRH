@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { capacitacionesApi as cap } from '@/api/capacitaciones'
 import type {
   PensumInput, ModuloInput, TemaInput, EvaluacionInput, PreguntaInput, RespuestaInput,
@@ -113,6 +113,37 @@ export function useGenerarExamen() {
 // ---------- Elegibles ----------
 export function useElegibles(filtros?: { puesto?: number; departamento?: number }) {
   return useQuery({ queryKey: QK.elegibles(filtros), queryFn: () => cap.listElegibles(filtros) })
+}
+
+// ---------- Evaluaciones por módulo (batch) ----------
+export function useEvaluacionesDeModulos(idModulos: number[]): {
+  tieneEvaluacion: (idModulo: number) => boolean | undefined
+  isLoading: boolean
+} {
+  const results = useQueries({
+    queries: idModulos.map((id) => ({
+      queryKey: QK.evaluacion(id),
+      queryFn: () => cap.getEvaluacion(id),
+      enabled: id > 0,
+    })),
+  })
+
+  const statusMap = new Map<number, boolean | undefined>()
+  idModulos.forEach((id, i) => {
+    const r = results[i]
+    if (!r || r.isLoading) {
+      statusMap.set(id, undefined)
+    } else {
+      statusMap.set(id, r.data != null)
+    }
+  })
+
+  const isLoading = results.some((r) => r.isLoading)
+
+  return {
+    tieneEvaluacion: (id: number) => statusMap.get(id),
+    isLoading,
+  }
 }
 
 // ---------- Reabrir ----------

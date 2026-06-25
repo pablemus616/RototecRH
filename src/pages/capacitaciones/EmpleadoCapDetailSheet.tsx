@@ -37,7 +37,9 @@ import {
   useAsignarPrimaria,
   useAsignarSecundaria,
   useEmpleadoCap,
+  useEvaluacionesDeModulos,
   useGenerarExamen,
+  usePensumArbol,
   usePensums,
   useReabrir,
 } from '@/hooks/useCapacitaciones'
@@ -260,6 +262,9 @@ function AsignacionCard({
 }) {
   const reabrir = useReabrir(empleadoId)
   const [seleccionados, setSeleccionados] = useState<number[]>([])
+  const { data: pensumArbol } = usePensumArbol(asignacion.idPensum)
+  const idModulos = asignacion.detalles.map((d) => d.idModulo)
+  const { tieneEvaluacion } = useEvaluacionesDeModulos(idModulos)
 
   function toggle(id: number, checked: boolean) {
     setSeleccionados((prev) =>
@@ -288,13 +293,16 @@ function AsignacionCard({
     }
   }
 
+  const pensumNombre = pensumArbol?.nombre ?? `Pensum ${asignacion.idPensum}`
+  const tipoBadgeVariant: 'default' | 'secondary' =
+    asignacion.tipo === 'primaria' ? 'default' : 'secondary'
+  const tipoLabel = asignacion.tipo === 'primaria' ? 'Primaria' : 'Secundaria'
+
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Badge variant={asignacion.tipo === 'PRIMARIA' ? 'default' : 'secondary'}>
-          {asignacion.tipo}
-        </Badge>
-        <span className="text-xs text-muted-foreground">Pensum #{asignacion.idPensum}</span>
+        <Badge variant={tipoBadgeVariant}>{tipoLabel}</Badge>
+        <span className="text-xs text-muted-foreground">{pensumNombre}</span>
         {asignacion.licenciaActiva ? (
           <Badge variant="success">Licencia vigente</Badge>
         ) : (
@@ -312,6 +320,8 @@ function AsignacionCard({
             detalle={d}
             checked={seleccionados.includes(d.idModulo)}
             onCheckedChange={(c) => toggle(d.idModulo, c)}
+            tieneEvaluacion={tieneEvaluacion(d.idModulo)}
+            moduloNombre={pensumArbol?.modulos.find((m) => m.id === d.idModulo)?.modulo}
           />
         ))}
       </div>
@@ -348,10 +358,14 @@ function DetalleRow({
   detalle,
   checked,
   onCheckedChange,
+  tieneEvaluacion,
+  moduloNombre,
 }: {
   detalle: AsignacionDetalleCap
   checked: boolean
   onCheckedChange: (checked: boolean) => void
+  tieneEvaluacion: boolean | undefined
+  moduloNombre: string | undefined
 }) {
   const generar = useGenerarExamen()
   const [examen, setExamen] = useState<GenerarExamenResult | undefined>(undefined)
@@ -376,11 +390,23 @@ function DetalleRow({
     }
   }
 
+  const examLink = examen ? `${window.location.origin}/examen/${examen.token}` : undefined
+
   function copyLink() {
-    if (!examen) return
-    navigator.clipboard.writeText(examen.url)
+    if (!examLink) return
+    navigator.clipboard.writeText(examLink)
     toast.success('Link copiado')
   }
+
+  const btnDisabled = tieneEvaluacion === false || tieneEvaluacion === undefined
+  const btnTitle =
+    tieneEvaluacion === false
+      ? 'Este módulo no tiene evaluación generada'
+      : tieneEvaluacion === undefined
+        ? 'Verificando evaluación…'
+        : undefined
+
+  const moduloLabel = moduloNombre ?? 'Módulo'
 
   return (
     <div className="rounded border bg-muted/30 p-2 text-sm">
@@ -391,21 +417,34 @@ function DetalleRow({
             onCheckedChange={(c) => onCheckedChange(c === true)}
             aria-label="Seleccionar módulo para repetir"
           />
-          <span className="font-medium">Módulo #{detalle.idModulo}</span>
+          <span className="font-medium">{moduloLabel}</span>
           <span className="text-xs text-muted-foreground">
             Nota: {detalle.puntuacion != null ? detalle.puntuacion : '—'}
           </span>
           {estadoBadge(detalle.estado)}
           <span className="text-xs text-muted-foreground">Intentos: {detalle.intentos}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-          Generar examen
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDialogOpen(true)}
+            disabled={btnDisabled}
+            title={btnTitle}
+          >
+            Generar examen
+          </Button>
+          {tieneEvaluacion === false && (
+            <p className="text-xs text-muted-foreground">
+              Este módulo no tiene evaluación generada.
+            </p>
+          )}
+        </div>
       </div>
 
-      {examen && (
+      {examLink && (
         <div className="mt-2 flex items-center gap-2">
-          <Input readOnly value={examen.url} className="h-8 text-xs" />
+          <Input readOnly value={examLink} className="h-8 text-xs" />
           <Button variant="ghost" size="sm" onClick={copyLink}>
             <Copy className="h-4 w-4" />
             Copiar link
