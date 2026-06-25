@@ -198,7 +198,7 @@ function AsignacionCard({
   async function repetirEntera() {
     if (!window.confirm('¿Reabrir toda la capacitación? Se reiniciarán todos los módulos.')) return
     try {
-      await reabrir.mutateAsync({})
+      await reabrir.mutateAsync({ idAsignacion: asignacion.id })
       setSeleccionados([])
       toast.success('Capacitación reabierta')
     } catch (err) {
@@ -208,7 +208,7 @@ function AsignacionCard({
 
   async function repetirSeleccionados() {
     try {
-      await reabrir.mutateAsync({ idModulos: seleccionados })
+      await reabrir.mutateAsync({ idAsignacion: asignacion.id, input: { idModulos: seleccionados } })
       setSeleccionados([])
       toast.success('Módulos reabiertos')
     } catch (err) {
