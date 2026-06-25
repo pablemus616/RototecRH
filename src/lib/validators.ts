@@ -414,7 +414,7 @@ const optionalNumber = (schema: z.ZodNumber) =>
 
 export const pensumSchema = z.object({
   nombre: z.string().min(1, 'Requerido').max(120),
-  idPuesto: optionalNumber(z.coerce.number().int().positive()),
+  idPuesto: z.coerce.number().int().positive({ message: 'Selecciona un puesto' }),
   puesto: optStrCap(120),
 })
 export type PensumFormValues = z.infer<typeof pensumSchema>

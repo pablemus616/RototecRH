@@ -179,7 +179,7 @@ export default function PensumsTab() {
   )
 }
 
-const defaultValues: PensumFormValues = { nombre: '', puesto: '', idPuesto: null }
+const defaultValues = { nombre: '', puesto: '' } as PensumFormValues
 
 function PensumFormDialog({
   open,
@@ -207,7 +207,7 @@ function PensumFormDialog({
   useEffect(() => {
     if (!open) return
     if (mode === 'edit' && pensum) {
-      form.reset({ nombre: pensum.nombre, puesto: pensum.puesto ?? '', idPuesto: pensum.idPuesto ?? null })
+      form.reset({ nombre: pensum.nombre, puesto: pensum.puesto ?? '', idPuesto: pensum.idPuesto ?? (undefined as unknown as number) })
       setIdPuesto(pensum.idPuesto ?? null)
     } else {
       form.reset(defaultValues)
@@ -257,17 +257,23 @@ function PensumFormDialog({
             )}
           </div>
           <div>
-            <Label className="mb-1.5 block">Puesto</Label>
+            <Label className="mb-1.5 block">
+              Puesto <span className="text-destructive">*</span>
+            </Label>
             <NameCombobox
               options={puestoOptions}
               value={idPuesto}
-              onChange={setIdPuesto}
+              onChange={(val) => {
+                setIdPuesto(val)
+                form.setValue('idPuesto', val as number, { shouldValidate: true })
+              }}
               placeholder={puestosLoading ? 'Cargando puestos…' : 'Selecciona un puesto'}
               searchPlaceholder="Buscar puesto…"
-              allowAll
-              allLabel="Sin puesto específico"
               disabled={puestosLoading}
             />
+            {errors.idPuesto && (
+              <p className="mt-1 text-xs text-destructive">{errors.idPuesto.message}</p>
+            )}
           </div>
 
           <DialogFooter>
