@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ import {
   useEmpleadoCap,
   useGenerarExamen,
   usePensums,
+  useReabrir,
 } from '@/hooks/useCapacitaciones'
 import { formatDate } from '@/lib/utils'
 import {
@@ -88,7 +90,7 @@ export function EmpleadoCapDetailSheet({ empleadoId, open, onOpenChange }: Props
               ) : (
                 <div className="space-y-4">
                   {data.asignaciones.map((a) => (
-                    <AsignacionCard key={a.id} asignacion={a} />
+                    <AsignacionCard key={a.id} asignacion={a} empleadoId={empleadoId} />
                   ))}
                 </div>
               )}
@@ -177,7 +179,43 @@ function SecundariaSection({ empleadoId }: { empleadoId: number }) {
   )
 }
 
-function AsignacionCard({ asignacion }: { asignacion: AsignacionCap }) {
+function AsignacionCard({
+  asignacion,
+  empleadoId,
+}: {
+  asignacion: AsignacionCap
+  empleadoId: number
+}) {
+  const reabrir = useReabrir(empleadoId)
+  const [seleccionados, setSeleccionados] = useState<number[]>([])
+
+  function toggle(id: number, checked: boolean) {
+    setSeleccionados((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id),
+    )
+  }
+
+  async function repetirEntera() {
+    if (!window.confirm('¿Reabrir toda la capacitación? Se reiniciarán todos los módulos.')) return
+    try {
+      await reabrir.mutateAsync({})
+      setSeleccionados([])
+      toast.success('Capacitación reabierta')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
+  async function repetirSeleccionados() {
+    try {
+      await reabrir.mutateAsync({ idModulos: seleccionados })
+      setSeleccionados([])
+      toast.success('Módulos reabiertos')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -197,8 +235,31 @@ function AsignacionCard({ asignacion }: { asignacion: AsignacionCap }) {
       </dl>
       <div className="space-y-2">
         {asignacion.detalles.map((d) => (
-          <DetalleRow key={d.id} detalle={d} />
+          <DetalleRow
+            key={d.id}
+            detalle={d}
+            checked={seleccionados.includes(d.id)}
+            onCheckedChange={(c) => toggle(d.id, c)}
+          />
         ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={repetirEntera}
+          disabled={reabrir.isPending || asignacion.detalles.length === 0}
+        >
+          Repetir capacitación entera
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={repetirSeleccionados}
+          disabled={reabrir.isPending || seleccionados.length === 0}
+        >
+          Repetir seleccionados ({seleccionados.length})
+        </Button>
       </div>
     </div>
   )
@@ -211,7 +272,15 @@ function estadoBadge(estado: string) {
   return <Badge variant="warning">{estado}</Badge>
 }
 
-function DetalleRow({ detalle }: { detalle: AsignacionDetalleCap }) {
+function DetalleRow({
+  detalle,
+  checked,
+  onCheckedChange,
+}: {
+  detalle: AsignacionDetalleCap
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}) {
   const generar = useGenerarExamen()
   const [examen, setExamen] = useState<GenerarExamenResult | undefined>(undefined)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -245,6 +314,11 @@ function DetalleRow({ detalle }: { detalle: AsignacionDetalleCap }) {
     <div className="rounded border bg-muted/30 p-2 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
+          <Checkbox
+            checked={checked}
+            onCheckedChange={(c) => onCheckedChange(c === true)}
+            aria-label="Seleccionar módulo para repetir"
+          />
           <span className="font-medium">Módulo #{detalle.idModulo}</span>
           <span className="text-xs text-muted-foreground">
             Nota: {detalle.puntuacion != null ? detalle.puntuacion : '—'}
