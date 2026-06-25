@@ -26,7 +26,7 @@ import { EmpleadoCapDetailSheet } from './EmpleadoCapDetailSheet'
 export default function AsignadosTab() {
   const [puesto, setPuesto] = useState('')
   const [departamento, setDepartamento] = useState('')
-  const [estado, setEstado] = useState<'todos' | 'activos' | 'inactivos'>('todos')
+  const [estado, setEstado] = useState<'todos' | 'activo' | 'inactivo'>('todos')
   const [selected, setSelected] = useState<number | undefined>(undefined)
 
   const filtros = {
@@ -66,8 +66,8 @@ export default function AsignadosTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="activos">Activos</SelectItem>
-              <SelectItem value="inactivos">Inactivos</SelectItem>
+              <SelectItem value="activo">Activos</SelectItem>
+              <SelectItem value="inactivo">Inactivos</SelectItem>
             </SelectContent>
           </Select>
         </div>

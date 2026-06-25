@@ -310,8 +310,8 @@ function AsignacionCard({
           <DetalleRow
             key={d.id}
             detalle={d}
-            checked={seleccionados.includes(d.id)}
-            onCheckedChange={(c) => toggle(d.id, c)}
+            checked={seleccionados.includes(d.idModulo)}
+            onCheckedChange={(c) => toggle(d.idModulo, c)}
           />
         ))}
       </div>
