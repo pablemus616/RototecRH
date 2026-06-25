@@ -13,7 +13,20 @@
       "Bash(curl -s -m 6 -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:3001/api/v2/auth/me)",
       "mcp__claude_ai_Vercel__list_teams",
       "mcp__claude_ai_Vercel__list_projects",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Read(//home/plemus/WebstormProjects/**)",
+      "Read(//home/plemus/WebstormProjects/Intranet/**)",
+      "Bash(rg -rl -i 'recursos-humanos|recursos_humanos|prefijo.*rrhh|4007|tEmpleados' /home/plemus/WebstormProjects/Microservicios --glob '!node_modules' --glob '!*.lock')",
+      "Bash(rg -rln 'getPensum|insertarCapacitacion|pensums/|modulosPorEmpleado|pensumsDeEmpleado|recapacitacion|postEvaluacion|getEvaluacion|/evaluaciones|crearCapacitacion' src)",
+      "Bash(grep -nE \"^#{1,4} \" /home/plemus/WebstormProjects/ApiRototec/FLUJO_BASE.md)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'docs\\(capacitaciones\\): spec de migración al MS de RH *)",
+      "Bash(git commit -q -m 'docs\\(capacitaciones\\): reglas del trigger confirmadas + Bono como flag *)",
+      "Bash($SK/scripts/task-brief *)",
+      "Bash(/home/plemus/.claude/plugins/cache/claude-plugins-official/superpowers/6.0.3/skills/subagent-driven-development/scripts/task-brief /home/plemus/WebstormProjects/RototecRH/docs/superpowers/plans/2026-06-25-capacitaciones-backend-autoria.md 1)",
+      "Bash(git -C /home/plemus/WebstormProjects/Microservicios branch --show-current)",
+      "Bash(git -C /home/plemus/WebstormProjects/Microservicios rev-parse --short HEAD)"
     ]
   }
 }

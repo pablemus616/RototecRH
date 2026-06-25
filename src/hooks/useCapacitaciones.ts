@@ -64,6 +64,10 @@ export function useCreateEvaluacion(idModulo: number) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (input: EvaluacionInput) => cap.createEvaluacion(input), onSuccess: () => qc.invalidateQueries({ queryKey: QK.evaluacion(idModulo) }) })
 }
+export function useUpdateEvaluacion(idModulo: number) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, nombre }: { id: number; nombre: string | undefined }) => cap.updateEvaluacion(id, nombre), onSuccess: () => qc.invalidateQueries({ queryKey: QK.evaluacion(idModulo) }) })
+}
 export function useDeleteEvaluacion(idModulo: number) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (id: number) => cap.deleteEvaluacion(id), onSuccess: () => qc.invalidateQueries({ queryKey: QK.evaluacion(idModulo) }) })

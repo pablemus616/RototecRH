@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { toast } from '@/components/ui/sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,7 @@ import {
   useDeletePregunta,
   useDeleteRespuesta,
   useEvaluacion,
+  useUpdateEvaluacion,
 } from '@/hooks/useCapacitaciones'
 import {
   preguntaSchema,
@@ -94,6 +95,12 @@ export function ModuloEvaluacionDialog({ idModulo, open, onOpenChange }: Props) 
           </div>
         ) : (
           <div className="space-y-4">
+            <NombreEvaluacion
+              idModulo={idModulo as number}
+              idEvaluacion={data.evaluacion.id}
+              nombre={data.evaluacion.nombre ?? ''}
+            />
+
             {idModulo !== undefined && (
               <NuevaPregunta idModulo={idModulo} idEvaluacion={data.evaluacion.id} />
             )}
@@ -116,6 +123,45 @@ export function ModuloEvaluacionDialog({ idModulo, open, onOpenChange }: Props) 
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function NombreEvaluacion({
+  idModulo,
+  idEvaluacion,
+  nombre,
+}: {
+  idModulo: number
+  idEvaluacion: number
+  nombre: string
+}) {
+  const updateMut = useUpdateEvaluacion(idModulo)
+  const [value, setValue] = useState(nombre)
+
+  async function onSave() {
+    try {
+      await updateMut.mutateAsync({ id: idEvaluacion, nombre: value.trim() || undefined })
+      toast.success('Nombre actualizado')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar')
+    }
+  }
+
+  return (
+    <div className="flex items-end gap-2 rounded-md border bg-muted/40 p-3">
+      <div className="flex-1">
+        <Label className="mb-1.5 block">Nombre de la evaluación</Label>
+        <Input
+          placeholder="Nombre de la evaluación"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      </div>
+      <Button onClick={onSave} disabled={updateMut.isPending || value === nombre}>
+        <Pencil className="h-4 w-4" />
+        Guardar
+      </Button>
+    </div>
   )
 }
 
