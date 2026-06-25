@@ -781,6 +781,8 @@ export interface EmpleadoCapResumen {
   modulosTotal: number
   modulosAprobados: number
   licenciaActiva: boolean
+  puestoNombre?: string | null
+  capacitacionNombre?: string | null
 }
 export interface AsignacionDetalleCap {
   id: number
@@ -842,6 +844,8 @@ export interface EmpleadoCapElegible {
   nombre: string
   idPuesto: number
   idPensum: number
+  puestoNombre?: string | null
+  pensumNombre?: string | null
 }
 
 export interface ReabrirInput {

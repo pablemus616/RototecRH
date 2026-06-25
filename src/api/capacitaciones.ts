@@ -140,10 +140,17 @@ function recomputeLicencia(header: AsignacionRow): void {
 }
 
 /** Build EmpleadoCapResumen from raw+asignaciones stores */
-function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[]): EmpleadoCapResumen {
+// Seed name maps for mock — kept in sync with seedEmpleadosRaw idPuesto/idDepartamento values
+const SEED_PUESTO_NOMBRES: Record<number, string> = { 1: 'Operario', 2: 'Administrativo' }
+
+function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[], pensums?: Pensum[]): EmpleadoCapResumen {
   const empAsigs = asigs.filter((a) => a.empleadoId === emp.empleadoId)
   const allDetalles = empAsigs.flatMap((a) => a.detalles)
   const licenciaActiva = empAsigs.some((a) => a.licenciaActiva)
+  const primaAsig = empAsigs.find((a) => a.tipo === 'primaria')
+  const capacitacionNombre = pensums && primaAsig
+    ? (pensums.find((p) => p.id === primaAsig.idPensum)?.nombre ?? null)
+    : null
   return {
     empleadoId: emp.empleadoId,
     nombre: emp.nombre,
@@ -153,6 +160,8 @@ function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[]): EmpleadoCapResu
     modulosTotal: allDetalles.length,
     modulosAprobados: allDetalles.filter((d) => d.estado === 'Aprobado').length,
     licenciaActiva,
+    puestoNombre: SEED_PUESTO_NOMBRES[emp.idPuesto] ?? null,
+    capacitacionNombre,
   }
 }
 
@@ -275,7 +284,14 @@ const mockApi = {
       })
       .map((e) => {
         const pensum = pensums.find((p) => p.idPuesto === e.idPuesto)!
-        return { empleadoId: e.empleadoId, nombre: e.nombre, idPuesto: e.idPuesto, idPensum: pensum.id }
+        return {
+          empleadoId: e.empleadoId,
+          nombre: e.nombre,
+          idPuesto: e.idPuesto,
+          idPensum: pensum.id,
+          puestoNombre: SEED_PUESTO_NOMBRES[e.idPuesto] ?? null,
+          pensumNombre: pensum.nombre,
+        }
       })
   },
 
@@ -376,6 +392,7 @@ const mockApi = {
     await delay()
     const emps = read<EmpleadoRaw>(K.empleados, seedEmpleadosRaw)
     const asigs = read<AsignacionRow>(K.asignaciones, seedAsignaciones)
+    const pensums = read<Pensum>(K.pensums, seedPensums)
     const withAsig = new Set(asigs.map((a) => a.empleadoId))
     return emps
       .filter((e) => {
@@ -384,7 +401,7 @@ const mockApi = {
         if (filtros?.estado === 'inactivo' && e.estaActivo) return false
         return true
       })
-      .map((e) => buildResumen(e, asigs))
+      .map((e) => buildResumen(e, asigs, pensums))
   },
 
   async getEmpleado(empleadoId: number): Promise<EmpleadoCapDetalle> {

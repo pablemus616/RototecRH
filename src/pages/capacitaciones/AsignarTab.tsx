@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Users } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Search, Users } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +29,8 @@ import {
   useElegibles,
   usePensums,
 } from '@/hooks/useCapacitaciones'
+import { usePuestoOptions, useDepartamentoOptions } from '@/hooks/usePuestoOptions'
+import { NameCombobox } from '@/components/ui/name-combobox'
 import { asignacionSecundariaSchema } from '@/lib/validators'
 import type { EmpleadoCapElegible } from '@/types'
 import {
@@ -41,19 +43,37 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 
+const norm = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
 export default function AsignarTab() {
-  const [puesto, setPuesto] = useState('')
-  const [departamento, setDepartamento] = useState('')
+  const [puestoId, setPuestoId] = useState<number | null>(null)
+  const [departamentoId, setDepartamentoId] = useState<number | null>(null)
+  const [search, setSearch] = useState('')
+
+  const { options: puestoOptions } = usePuestoOptions()
+  const { options: deptoOptions } = useDepartamentoOptions()
+  const { data: pensums } = usePensums()
 
   const filtros = {
-    puesto: puesto.trim() ? Number(puesto.trim()) : undefined,
-    departamento: departamento.trim() ? Number(departamento.trim()) : undefined,
+    puesto: puestoId ?? undefined,
+    departamento: departamentoId ?? undefined,
   }
   const { data, isLoading, isError } = useElegibles(filtros)
-  const elegibles = data ?? []
+
+  const elegibles = useMemo(() => {
+    const all = data ?? []
+    if (!search.trim()) return all
+    const q = norm(search.trim())
+    return all.filter((e) => norm(e.nombre).includes(q))
+  }, [data, search])
 
   // Multi-select state
   const [selected, setSelected] = useState<Set<number>>(new Set())
+
+  function resetFilters() {
+    setSelected(new Set())
+  }
 
   function toggleAll() {
     if (selected.size === elegibles.length && elegibles.length > 0) {
@@ -91,39 +111,61 @@ export default function AsignarTab() {
   // Secundaria dialog state
   const [secundariaFor, setSecundariaFor] = useState<EmpleadoCapElegible | undefined>()
 
+  // Puesto name resolver fallback
+  const puestoMap = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const o of puestoOptions) m.set(o.id, o.nombre)
+    return m
+  }, [puestoOptions])
+
+  // Pensum name resolver fallback
+  const pensumMap = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const p of pensums ?? []) m.set(p.id, p.nombre)
+    return m
+  }, [pensums])
+
   return (
     <div className="space-y-4">
       {/* Filter row */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Puesto (ID)</label>
-          <Input
-            value={puesto}
-            onChange={(e) => {
-              setPuesto(e.target.value)
-              setSelected(new Set())
-            }}
-            placeholder="Ej. 1"
-            type="number"
-            min={1}
-            className="sm:w-40"
+          <label className="text-xs text-muted-foreground">Puesto</label>
+          <NameCombobox
+            options={puestoOptions}
+            value={puestoId}
+            onChange={(v) => { setPuestoId(v); resetFilters() }}
+            placeholder="Todos los puestos"
+            allowAll
+            allLabel="Todos los puestos"
+            className="sm:w-52"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted-foreground">Departamento (ID)</label>
-          <Input
-            value={departamento}
-            onChange={(e) => {
-              setDepartamento(e.target.value)
-              setSelected(new Set())
-            }}
-            placeholder="Ej. 1"
-            type="number"
-            min={1}
-            className="sm:w-40"
+          <label className="text-xs text-muted-foreground">Departamento</label>
+          <NameCombobox
+            options={deptoOptions}
+            value={departamentoId}
+            onChange={(v) => { setDepartamentoId(v); resetFilters() }}
+            placeholder="Todos los departamentos"
+            allowAll
+            allLabel="Todos los departamentos"
+            className="sm:w-56"
           />
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Buscar empleado</label>
+          <div className="relative sm:w-56">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); resetFilters() }}
+              placeholder="Nombre del empleado"
+              className="pl-8"
+            />
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2 sm:mt-5">
           {selected.size > 0 && (
             <Badge variant="secondary">{selected.size} seleccionado(s)</Badge>
           )}
@@ -157,8 +199,8 @@ export default function AsignarTab() {
                 />
               </TableHead>
               <TableHead>Nombre</TableHead>
-              <TableHead>ID Puesto</TableHead>
-              <TableHead>ID Pensum</TableHead>
+              <TableHead>Puesto</TableHead>
+              <TableHead>Capacitación</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -191,6 +233,8 @@ export default function AsignarTab() {
                   checked={selected.has(e.empleadoId)}
                   onToggle={() => toggle(e.empleadoId)}
                   onSecundaria={() => setSecundariaFor(e)}
+                  puestoNombre={e.puestoNombre ?? puestoMap.get(e.idPuesto) ?? '—'}
+                  pensumNombre={e.pensumNombre ?? pensumMap.get(e.idPensum) ?? '—'}
                 />
               ))
             )}
@@ -215,11 +259,15 @@ function ElegibleRow({
   checked,
   onToggle,
   onSecundaria,
+  puestoNombre,
+  pensumNombre,
 }: {
   emp: EmpleadoCapElegible
   checked: boolean
   onToggle: () => void
   onSecundaria: () => void
+  puestoNombre: string
+  pensumNombre: string
 }) {
   return (
     <TableRow
@@ -234,8 +282,8 @@ function ElegibleRow({
         />
       </TableCell>
       <TableCell className="font-medium">{emp.nombre}</TableCell>
-      <TableCell className="tabular-nums">{emp.idPuesto}</TableCell>
-      <TableCell className="tabular-nums">{emp.idPensum}</TableCell>
+      <TableCell>{puestoNombre}</TableCell>
+      <TableCell>{pensumNombre}</TableCell>
       <TableCell className="text-right">
         <Button
           variant="outline"
