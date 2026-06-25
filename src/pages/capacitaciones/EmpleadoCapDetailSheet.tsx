@@ -303,11 +303,15 @@ function AsignacionCard({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Badge variant={tipoBadgeVariant}>{tipoLabel}</Badge>
         <span className="text-xs text-muted-foreground">{pensumNombre}</span>
-        {asignacion.licenciaActiva ? (
-          <Badge variant="success">Licencia vigente</Badge>
-        ) : (
-          <Badge variant="outline">Sin licencia</Badge>
-        )}
+        {(() => {
+          if (asignacion.venceLicencia !== null) {
+            const hoy = new Date(); hoy.setHours(0,0,0,0)
+            return new Date(asignacion.venceLicencia) >= hoy
+              ? <Badge variant="success">Licencia activa</Badge>
+              : <Badge variant="destructive">Licencia expirada</Badge>
+          }
+          return <Badge variant="outline">Sin licencia</Badge>
+        })()}
       </div>
       <dl className="mb-3 space-y-1 text-xs text-muted-foreground">
         <div>Vence licencia: {asignacion.venceLicencia ? formatDate(asignacion.venceLicencia) : '—'}</div>

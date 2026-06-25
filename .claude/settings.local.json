@@ -28,7 +28,12 @@
       "Bash(git -C /home/plemus/WebstormProjects/Microservicios branch --show-current)",
       "Bash(git -C /home/plemus/WebstormProjects/Microservicios rev-parse --short HEAD)",
       "Bash(rg -rln 'PensumForm|editar.*pensum|pensum.*editar|defaultValues.*idPuesto' src/pages/capacitaciones)",
-      "Bash(git -C /home/plemus/WebstormProjects/RototecRH checkout -b fix/cap-combobox-seleccion)"
+      "Bash(git -C /home/plemus/WebstormProjects/RototecRH checkout -b fix/cap-combobox-seleccion)",
+      "Bash(git -C /home/plemus/WebstormProjects/RototecRH show --stat 5fbd90b)",
+      "Bash(NODE_PATH=/home/plemus/WebstormProjects/Microservicios/node_modules node /tmp/claude-1000/-home-plemus-WebstormProjects-RototecRH/51c09417-de3c-4c40-b2f3-172303a2c04a/scratchpad/migrate.cjs)",
+      "Bash(NODE_PATH=/home/plemus/WebstormProjects/Microservicios/node_modules node -e ' *)",
+      "Bash(NODE_PATH=/home/plemus/WebstormProjects/Microservicios/node_modules node /tmp/claude-1000/-home-plemus-WebstormProjects-RototecRH/51c09417-de3c-4c40-b2f3-172303a2c04a/scratchpad/fix_puestos.cjs)",
+      "Bash(git -C /home/plemus/WebstormProjects/RototecRH checkout -b feat/cap-licencia-estado-fe)"
     ]
   }
 }

@@ -147,6 +147,12 @@ function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[], pensums?: Pensum
   const empAsigs = asigs.filter((a) => a.empleadoId === emp.empleadoId)
   const allDetalles = empAsigs.flatMap((a) => a.detalles)
   const licenciaActiva = empAsigs.some((a) => a.licenciaActiva)
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  const licenciaEstado: 'activa' | 'expirada' | 'sin_licencia' = empAsigs.some(
+    (a) => a.venceLicencia !== null && new Date(a.venceLicencia) >= hoy
+  ) ? 'activa' : empAsigs.some(
+    (a) => a.venceLicencia !== null && new Date(a.venceLicencia) < hoy
+  ) ? 'expirada' : 'sin_licencia'
   const primaAsig = empAsigs.find((a) => a.tipo === 'primaria')
   const capacitacionNombre = pensums && primaAsig
     ? (pensums.find((p) => p.id === primaAsig.idPensum)?.nombre ?? null)
@@ -160,6 +166,7 @@ function buildResumen(emp: EmpleadoRaw, asigs: AsignacionRow[], pensums?: Pensum
     modulosTotal: allDetalles.length,
     modulosAprobados: allDetalles.filter((d) => d.estado === 'Aprobado').length,
     licenciaActiva,
+    licenciaEstado,
     puestoNombre: SEED_PUESTO_NOMBRES[emp.idPuesto] ?? null,
     capacitacionNombre,
   }

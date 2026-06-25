@@ -26,6 +26,12 @@ import { NameCombobox } from '@/components/ui/name-combobox'
 import type { EmpleadoCapResumen } from '@/types'
 import { EmpleadoCapDetailSheet } from './EmpleadoCapDetailSheet'
 
+function licenciaBadge(estado: 'activa' | 'expirada' | 'sin_licencia') {
+  if (estado === 'activa') return <Badge variant="success">Licencia activa</Badge>
+  if (estado === 'expirada') return <Badge variant="destructive">Licencia expirada</Badge>
+  return <Badge variant="outline">Sin licencia</Badge>
+}
+
 const norm = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
@@ -208,11 +214,7 @@ function EmpleadoRow({
         {emp.modulosAprobados}/{emp.modulosTotal}
       </TableCell>
       <TableCell>
-        {emp.licenciaActiva ? (
-          <Badge variant="success">Vigente</Badge>
-        ) : (
-          <Badge variant="outline">—</Badge>
-        )}
+        {licenciaBadge(emp.licenciaEstado)}
       </TableCell>
     </TableRow>
   )

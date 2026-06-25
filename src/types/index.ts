@@ -781,6 +781,7 @@ export interface EmpleadoCapResumen {
   modulosTotal: number
   modulosAprobados: number
   licenciaActiva: boolean
+  licenciaEstado: 'activa' | 'expirada' | 'sin_licencia'
   puestoNombre?: string | null
   capacitacionNombre?: string | null
 }
