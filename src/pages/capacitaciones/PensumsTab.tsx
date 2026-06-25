@@ -220,7 +220,7 @@ function PensumFormDialog({
     const input: PensumInput = {
       nombre: values.nombre,
       idPuesto: idPuesto ?? undefined,
-      puesto: selectedPuesto?.nombre ?? values.puesto || undefined,
+      puesto: (selectedPuesto?.nombre ?? values.puesto) || undefined,
     }
     try {
       if (mode === 'create') {

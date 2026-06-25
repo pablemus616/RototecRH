@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Copy } from 'lucide-react'
+import { Copy, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -443,12 +443,23 @@ function DetalleRow({
       </div>
 
       {examLink && (
-        <div className="mt-2 flex items-center gap-2">
-          <Input readOnly value={examLink} className="h-8 text-xs" />
-          <Button variant="ghost" size="sm" onClick={copyLink}>
-            <Copy className="h-4 w-4" />
-            Copiar link
-          </Button>
+        <div className="mt-2 space-y-1">
+          <div className="flex items-center gap-2">
+            <Input readOnly value={examLink} className="h-8 text-xs" />
+            <Button variant="ghost" size="sm" onClick={copyLink}>
+              <Copy className="h-4 w-4" />
+              Copiar link
+            </Button>
+            <a
+              href={examLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Abrir examen
+            </a>
+          </div>
         </div>
       )}
 
