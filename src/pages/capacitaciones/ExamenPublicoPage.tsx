@@ -191,7 +191,7 @@ export default function ExamenPublicoPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4 text-center">
-                <p className="text-4xl font-bold">{resultado.puntaje}%</p>
+                <p className="text-4xl font-bold">Puntaje: {resultado.puntaje}</p>
                 <Badge variant={resultado.aprobado ? 'success' : 'destructive'} className="text-sm px-4 py-1">
                   {resultado.estado}
                 </Badge>

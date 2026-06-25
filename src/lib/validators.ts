@@ -405,10 +405,16 @@ export const WIZARD_STEP_FIELDS: (keyof EmpleadoCreateValues)[][] = [
 // CAPACITACIONES
 // =====================================================
 const optStrCap = (max = 200) => z.string().max(max).optional().or(z.literal(''))
+// Convierte '' / null / undefined → undefined antes de parsear; así z.optional() sí aplica.
+const optionalNumber = (schema: z.ZodNumber) =>
+  z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    schema.optional(),
+  )
 
 export const pensumSchema = z.object({
   nombre: z.string().min(1, 'Requerido').max(120),
-  idPuesto: z.coerce.number().int().positive().optional(),
+  idPuesto: optionalNumber(z.coerce.number().int().positive()),
   puesto: optStrCap(120),
 })
 export type PensumFormValues = z.infer<typeof pensumSchema>
@@ -416,12 +422,12 @@ export type PensumFormValues = z.infer<typeof pensumSchema>
 export const moduloSchema = z.object({
   modulo: z.string().min(1, 'Requerido').max(160),
   objetivo: optStr(500),
-  duracionHoras: z.coerce.number().min(0).max(999).optional(),
-  capacitador: z.coerce.number().int().positive().optional(),
+  duracionHoras: optionalNumber(z.coerce.number().min(0).max(999)),
+  capacitador: optionalNumber(z.coerce.number().int().positive()),
   tipoEvaluacion: optStr(80),
   instrumentos: optStr(300),
-  porcentajeAprobacion: z.coerce.number().min(0).max(100).optional(),
-  vigencia: z.coerce.number().int().min(0).max(120).optional(),
+  porcentajeAprobacion: optionalNumber(z.coerce.number().min(0).max(100)),
+  vigencia: optionalNumber(z.coerce.number().int().min(0).max(120)),
   bono: z.boolean().optional(),
 })
 export type ModuloFormValues = z.infer<typeof moduloSchema>
@@ -440,8 +446,8 @@ export type EvaluacionFormValues = z.infer<typeof evaluacionSchema>
 
 export const preguntaSchema = z.object({
   pregunta: z.string().min(1, 'Requerido').max(500),
-  puntosPorRespuesta: z.coerce.number().min(0).max(100).optional(),
-  idTema: z.coerce.number().int().positive().optional(),
+  puntosPorRespuesta: optionalNumber(z.coerce.number().min(0).max(100)),
+  idTema: optionalNumber(z.coerce.number().int().positive()),
 })
 export type PreguntaFormValues = z.infer<typeof preguntaSchema>
 
@@ -457,6 +463,6 @@ export const asignacionSecundariaSchema = z.object({
 export type AsignacionSecundariaFormValues = z.infer<typeof asignacionSecundariaSchema>
 
 export const generarExamenSchema = z.object({
-  horasVigencia: z.coerce.number().int().min(1).max(720).optional(),
+  horasVigencia: optionalNumber(z.coerce.number().int().min(1).max(720)),
 })
 export type GenerarExamenFormValues = z.infer<typeof generarExamenSchema>
