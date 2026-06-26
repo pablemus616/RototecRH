@@ -651,7 +651,7 @@ function DetalleDialog({
 
   return (
     <Dialog open={!!empleado} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-5xl">
+      <DialogContent className="max-w-[min(96vw,88rem)]">
         <DialogHeader>
           <DialogTitle>Detalle — {empleado?.nombre}</DialogTitle>
           <DialogDescription>
@@ -760,9 +760,9 @@ function DetalleDialog({
           {/* Detalle día a día (qué día trabajó qué sistema) */}
           <div className="space-y-2">
             <h4 className="text-sm font-semibold">Detalle día a día</h4>
-            <div className="overflow-auto rounded-md border">
+            <div className="max-h-[55vh] overflow-auto rounded-md border">
               <Table>
-                <TableHeader>
+                <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-background">
                   <TableRow>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Día</TableHead>
