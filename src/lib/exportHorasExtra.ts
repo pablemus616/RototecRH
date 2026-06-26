@@ -303,7 +303,7 @@ function estadoTexto(d: DetalleDiaHE): string {
   if (d.entradaTarde && d.entradaDeltaMin != null) out.push(`Entró ${fmtDur(d.entradaDeltaMin)} tarde`)
   if (d.salidaTemprano && d.salidaDeltaMin != null && !d.horarioAutorizado) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} antes`)
   if (d.salidaTarde && d.salidaDeltaMin != null) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} después`)
-  if (d.horarioAutorizado) out.push(`Horario autorizado${d.cumplimientoPct != null ? ` (meta ${Math.round(d.cumplimientoPct)}%)` : ''}`)
+  if (d.horarioAutorizado) out.push(`Horario autorizado${d.cumplimientoPct != null ? ` (meta ${d.cumplimientoPct.toFixed(2)}%)` : ''}`)
   if (!out.length) return d.tipo === 'DIA' || d.tipo === 'NOCHE' ? 'OK' : ''
   return out.join('; ')
 }
@@ -354,7 +354,7 @@ function hojaDetalle(wb: ExcelJS.Workbook, empleados: DetalleEmpleadoExport[], d
         d.efectivas,
         d.metaDia ?? '',
         d.ejecutado ?? '',
-        d.cumplimientoPct != null ? `${Math.round(d.cumplimientoPct)}%` : '',
+        d.cumplimientoPct != null ? `${d.cumplimientoPct.toFixed(2)}%` : '',
         estadoTexto(d),
       ]
       vals.forEach((v, ci) => {

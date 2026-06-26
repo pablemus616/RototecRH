@@ -532,7 +532,7 @@ function fmtDuracion(min: number): string {
 }
 function fmtCumpl(n?: number | null, unidad?: 'puntos' | 'kg' | null): string {
   if (n == null) return '—'
-  const v = Number.isInteger(n) ? String(n) : n.toFixed(1)
+  const v = Number.isInteger(n) ? String(n) : n.toFixed(2)
   return `${v}${unidad === 'kg' ? ' kg' : unidad === 'puntos' ? ' pts' : ''}`
 }
 
@@ -610,7 +610,7 @@ function EstadoDia({ dia, trabajado }: { dia: DetalleDiaHE; trabajado: boolean }
     badges.push(
       <Badge key="ha" tone="green">
         <Check className="h-3 w-3" /> Horario autorizado
-        {dia.cumplimientoPct != null ? ` · meta ${Math.round(dia.cumplimientoPct)}%` : ''}
+        {dia.cumplimientoPct != null ? ` · meta ${dia.cumplimientoPct.toFixed(2)}%` : ''}
       </Badge>,
     )
   if (badges.length === 0) {
@@ -845,7 +845,7 @@ function DetalleDialog({
                                   : 'text-amber-600',
                             )}
                           >
-                            {d.cumplimientoPct == null ? '—' : `${Math.round(d.cumplimientoPct)}%`}
+                            {d.cumplimientoPct == null ? '—' : `${d.cumplimientoPct.toFixed(2)}%`}
                           </TableCell>
                           <TableCell>
                             <EstadoDia dia={d} trabajado={trabajado} />
