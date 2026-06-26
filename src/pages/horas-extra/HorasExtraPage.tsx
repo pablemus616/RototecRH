@@ -840,7 +840,7 @@ function DetalleDialog({
                               'text-right text-xs tabular-nums',
                               d.cumplimientoPct == null
                                 ? 'text-muted-foreground'
-                                : d.cumplimientoPct >= 100
+                                : d.cumplioMeta
                                   ? 'font-semibold text-emerald-600'
                                   : 'text-amber-600',
                             )}
