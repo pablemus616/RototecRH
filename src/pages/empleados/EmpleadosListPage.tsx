@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatQ, nombreParaMostrar } from '@/lib/utils'
 import { useEmpleadosBackendList } from '@/hooks/useEmpleados'
 import { useEmpresas } from '@/hooks/useCompanyCatalogos'
+import { usePuestoOptions } from '@/hooks/usePuestoOptions'
 import { EmpleadoStatusBadge } from './EmpleadoStatusBadge'
 import type { EmpleadoBackend } from '@/types'
 
@@ -51,24 +52,30 @@ export default function EmpleadosListPage() {
   const navigate = useNavigate()
   const { data, isLoading, isError } = useEmpleadosBackendList()
   const empresas = useEmpresas()
+  const { options: puestoOptions } = usePuestoOptions()
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<EstadoFilter>('TODOS')
+  const [filtroPuesto, setFiltroPuesto] = useState('TODOS')
   const [page, setPage] = useState(1)
 
   const empresaNombre = (id: number | null) =>
     empresas.data?.find((x) => x.id === id)?.nombre ?? (id != null ? String(id) : '—')
+
+  const puestoNombre = (id?: number | null) =>
+    id == null ? '—' : (puestoOptions.find((p) => p.id === id)?.nombre ?? String(id))
 
   const filtered = useMemo(() => {
     const t = filtroTexto.trim().toLowerCase()
     return (data ?? []).filter((e) => {
       if (filtroEstado === 'ACTIVO' && !e.estaActivo) return false
       if (filtroEstado === 'BAJA' && e.estaActivo) return false
+      if (filtroPuesto !== 'TODOS' && String(e.idPuesto ?? '') !== filtroPuesto) return false
       if (!t) return true
       const full = displayName(e).toLowerCase()
       const dpi = e.numeroIdentificacionNacional ?? ''
       return full.includes(t) || dpi.includes(t)
     })
-  }, [data, filtroTexto, filtroEstado])
+  }, [data, filtroTexto, filtroEstado, filtroPuesto])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -80,6 +87,10 @@ export default function EmpleadosListPage() {
   }
   function onChangeEstado(v: string) {
     setFiltroEstado(v as EstadoFilter)
+    setPage(1)
+  }
+  function onChangePuesto(v: string) {
+    setFiltroPuesto(v)
     setPage(1)
   }
 
@@ -122,6 +133,22 @@ export default function EmpleadosListPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full sm:w-56">
+            <label className="text-xs font-medium text-muted-foreground">Puesto</label>
+            <Select value={filtroPuesto} onValueChange={onChangePuesto}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos los puestos</SelectItem>
+                {puestoOptions.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </Card>
 
@@ -132,6 +159,7 @@ export default function EmpleadosListPage() {
               <TableHead>Nombre completo</TableHead>
               <TableHead>DPI</TableHead>
               <TableHead>Empresa</TableHead>
+              <TableHead>Puesto</TableHead>
               <TableHead className="text-right">Salario base</TableHead>
               <TableHead>Fecha contratación</TableHead>
               <TableHead>Estado</TableHead>
@@ -142,20 +170,20 @@ export default function EmpleadosListPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={8}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-destructive">
+                <TableCell colSpan={8} className="text-center text-destructive">
                   Error al cargar empleados
                 </TableCell>
               </TableRow>
             ) : pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                   Sin resultados
                 </TableCell>
               </TableRow>
@@ -171,6 +199,7 @@ export default function EmpleadosListPage() {
                     {e.numeroIdentificacionNacional ?? '—'}
                   </TableCell>
                   <TableCell>{empresaNombre(e.empresaId)}</TableCell>
+                  <TableCell>{puestoNombre(e.idPuesto)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {e.salarioBaseContrato != null ? formatQ(e.salarioBaseContrato) : '—'}
                   </TableCell>
