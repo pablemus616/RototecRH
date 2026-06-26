@@ -530,6 +530,11 @@ function fmtDuracion(min: number): string {
   const m = abs % 60
   return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`
 }
+function fmtCumpl(n?: number | null, unidad?: 'puntos' | 'kg' | null): string {
+  if (n == null) return '—'
+  const v = Number.isInteger(n) ? String(n) : n.toFixed(1)
+  return `${v}${unidad === 'kg' ? ' kg' : unidad === 'puntos' ? ' pts' : ''}`
+}
 
 function Badge({ tone, children }: { tone: 'red' | 'amber' | 'green'; children: ReactNode }) {
   const tones = {
@@ -599,6 +604,13 @@ function EstadoDia({ dia, trabajado }: { dia: DetalleDiaHE; trabajado: boolean }
     badges.push(
       <Badge key="se" tone="amber">
         <Clock className="h-3 w-3" /> Salió {fmtDuracion(dia.salidaDeltaMin)} antes
+      </Badge>,
+    )
+  if (dia.salidaAutorizada)
+    badges.push(
+      <Badge key="sa" tone="green">
+        <Check className="h-3 w-3" /> Salida autorizada
+        {dia.cumplimientoPct != null ? ` · meta ${Math.round(dia.cumplimientoPct)}%` : ''}
       </Badge>,
     )
   if (badges.length === 0) {
@@ -760,6 +772,9 @@ function DetalleDialog({
                     <TableHead className="text-center">Biométrico</TableHead>
                     <TableHead className="text-center">Oficial</TableHead>
                     <TableHead className="text-right">Efectivas</TableHead>
+                    <TableHead className="text-right">Meta</TableHead>
+                    <TableHead className="text-right">Ejecutado</TableHead>
+                    <TableHead className="text-right">% Cumpl.</TableHead>
                     <TableHead>Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -767,14 +782,14 @@ function DetalleDialog({
                   {det.isLoading ? (
                     Array.from({ length: 7 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell colSpan={9}>
+                        <TableCell colSpan={12}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : !det.data || det.data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                      <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                         Sin datos en el rango.
                       </TableCell>
                     </TableRow>
@@ -813,6 +828,24 @@ function DetalleDialog({
                           </TableCell>
                           <TableCell className={cn('text-right tabular-nums', trabajado && 'font-medium')}>
                             {d.efectivas.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
+                            {fmtCumpl(d.metaDia, d.unidad)}
+                          </TableCell>
+                          <TableCell className="text-right text-xs tabular-nums text-muted-foreground">
+                            {fmtCumpl(d.ejecutado, d.unidad)}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right text-xs tabular-nums',
+                              d.cumplimientoPct == null
+                                ? 'text-muted-foreground'
+                                : d.cumplimientoPct >= 100
+                                  ? 'font-semibold text-emerald-600'
+                                  : 'text-amber-600',
+                            )}
+                          >
+                            {d.cumplimientoPct == null ? '—' : `${Math.round(d.cumplimientoPct)}%`}
                           </TableCell>
                           <TableCell>
                             <EstadoDia dia={d} trabajado={trabajado} />

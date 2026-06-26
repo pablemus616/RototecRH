@@ -301,8 +301,9 @@ function estadoTexto(d: DetalleDiaHE): string {
   if (d.marcaFueraDeTurno) out.push('Marca fuera de turno')
   if (d.entradaAntes && d.entradaDeltaMin != null) out.push(`Entró ${fmtDur(d.entradaDeltaMin)} antes`)
   if (d.entradaTarde && d.entradaDeltaMin != null) out.push(`Entró ${fmtDur(d.entradaDeltaMin)} tarde`)
-  if (d.salidaTemprano && d.salidaDeltaMin != null) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} antes`)
+  if (d.salidaTemprano && d.salidaDeltaMin != null && !d.salidaAutorizada) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} antes`)
   if (d.salidaTarde && d.salidaDeltaMin != null) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} después`)
+  if (d.salidaAutorizada) out.push(`Salida autorizada${d.cumplimientoPct != null ? ` (meta ${Math.round(d.cumplimientoPct)}%)` : ''}`)
   if (!out.length) return d.tipo === 'DIA' || d.tipo === 'NOCHE' ? 'OK' : ''
   return out.join('; ')
 }
@@ -319,6 +320,9 @@ function hojaDetalle(wb: ExcelJS.Workbook, empleados: DetalleEmpleadoExport[], d
     { header: 'Biométrico', width: 13, align: 'center' },
     { header: 'Oficial', width: 13, align: 'center' },
     { header: 'Efectivas', width: 10, align: 'right', num: true },
+    { header: 'Meta', width: 11, align: 'right', num: true },
+    { header: 'Ejecutado', width: 12, align: 'right', num: true },
+    { header: '% Cumpl.', width: 9, align: 'right' },
     { header: 'Estado', width: 30 },
   ]
   const totalDias = empleados.reduce((s, e) => s + e.dias.length, 0)
@@ -348,6 +352,9 @@ function hojaDetalle(wb: ExcelJS.Workbook, empleados: DetalleEmpleadoExport[], d
         rango(d.marcaIngreso, d.marcaSalida),
         rango(d.ingreso, d.egreso),
         d.efectivas,
+        d.metaDia ?? '',
+        d.ejecutado ?? '',
+        d.cumplimientoPct != null ? `${Math.round(d.cumplimientoPct)}%` : '',
         estadoTexto(d),
       ]
       vals.forEach((v, ci) => {
@@ -373,7 +380,7 @@ function hojaDetalle(wb: ExcelJS.Workbook, empleados: DetalleEmpleadoExport[], d
       else if (d.tipo === 'DIA') tipoCell.font = { name: 'Calibri', size: 10, color: { argb: C.diaFg } }
       else tipoCell.font = { name: 'Calibri', size: 10, color: { argb: C.subFg } }
       // Estado con color (grave rojo, leve ámbar).
-      const estadoCell = r.getCell(10)
+      const estadoCell = r.getCell(13)
       if (grave) estadoCell.font = { name: 'Calibri', size: 10, color: { argb: C.deficitFg } }
       else if (leve) estadoCell.font = { name: 'Calibri', size: 10, color: { argb: C.diaFg } }
       else estadoCell.font = { name: 'Calibri', size: 10, color: { argb: C.subFg } }

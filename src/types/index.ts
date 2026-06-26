@@ -337,6 +337,12 @@ export interface DetalleDiaHE {
   marcaSinTurno: boolean                 // hubo marca pero no había turno programado
   marcaFueraDeTurno: boolean             // marca de entrada posterior al fin de un turno diurno
   inconsistente: boolean                 // hay alguna discrepancia que amerita revisión
+  metaDia?: number | null                // meta del día (puntos acabados / kg producción)
+  ejecutado?: number | null              // ejecutado del día (misma unidad que metaDia)
+  cumplimientoPct?: number | null        // ejecutado/meta*100
+  cumplioMeta?: boolean                  // alcanzó el 100% de la meta del día
+  salidaAutorizada?: boolean             // salió temprano PERO autorizado por meta cumplida
+  unidad?: 'puntos' | 'kg' | null        // unidad de meta/ejecutado
 }
 
 // Detalle día a día de un empleado, agrupado — GET /rrhh/horas-extra/detalle-todos (para el export).
