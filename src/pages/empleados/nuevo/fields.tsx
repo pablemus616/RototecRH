@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -114,5 +115,33 @@ export function SelectField({
         </SelectContent>
       </Select>
     </FieldShell>
+  )
+}
+
+export function CheckboxField({
+  name,
+  label,
+  hint,
+}: {
+  name: Name
+  label: string
+  hint?: string
+}) {
+  const { watch, setValue } = useFormContext<EmpleadoCreateValues>()
+  const checked = watch(name) as boolean | undefined
+  return (
+    <div className="flex items-start gap-3 py-1">
+      <Checkbox
+        id={name}
+        checked={!!checked}
+        onCheckedChange={(val) => setValue(name, !!val as never, { shouldDirty: true })}
+      />
+      <div className="space-y-0.5 leading-none">
+        <Label htmlFor={name} className="text-xs font-medium text-muted-foreground cursor-pointer">
+          {label}
+        </Label>
+        {hint && <p className="text-xs text-muted-foreground/70">{hint}</p>}
+      </div>
+    </div>
   )
 }

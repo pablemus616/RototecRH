@@ -21,7 +21,7 @@ import {
 } from '@/hooks/useCompanyCatalogos'
 import { useBiotimeDepartamentos, useBiotimeUbicaciones } from '@/hooks/useBiotime'
 import type { EmpleadoCreateValues } from '@/lib/validators'
-import { SelectField, TextField, type Opt } from './fields'
+import { CheckboxField, SelectField, TextField, type Opt } from './fields'
 
 export const WIZARD_STEPS = [
   { id: 'pais', title: 'País' },
@@ -216,6 +216,13 @@ export function StepContent({ index }: { index: number }) {
             disabled={!esTransferencia}
             options={tiposCuenta}
           />
+          <div className="sm:col-span-2">
+            <CheckboxField
+              name="habilitar_horas_extra"
+              label="Habilitar horas extra"
+              hint="Calcula horas extra aunque no tenga rol de producción (carga General)"
+            />
+          </div>
         </div>
       )
     case 8:

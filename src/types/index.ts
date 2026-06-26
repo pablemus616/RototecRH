@@ -576,6 +576,8 @@ export interface CreateEmpleadoInput {
   // biométrico
   departamento_biotime: number
   ubicacion_biometrico: number
+  // horas extra
+  habilitar_horas_extra?: boolean
 }
 
 /** Respuesta de POST /rrhh/empleados — entidad creada (camelCase del backend). */
@@ -612,6 +614,7 @@ export interface EmpleadoBackend {
   fechaContratacion: string | null
   fechaReingreso: string | null
   estaActivo: boolean
+  habilitarHorasExtra: boolean | null
   salarioBaseContrato: number | null
   bonificacionDecretoBaseContrato: number | null
   cantidadHijos: number | null

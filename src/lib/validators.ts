@@ -356,6 +356,8 @@ export const empleadoCreateSchema = z
     // biométrico
     departamento_biotime: reqId,
     ubicacion_biometrico: reqId,
+    // horas extra
+    habilitar_horas_extra: z.boolean().default(false),
   })
   .superRefine((data, ctx) => {
     // Formato estricto de documentos solo para Guatemala (otros países: solo requerido).
@@ -397,7 +399,8 @@ export const WIZARD_STEP_FIELDS: (keyof EmpleadoCreateValues)[][] = [
    'cantidad_hijos', 'tipo_discapacidad', 'telefono', 'correo', 'direccion', 'pasaporte'],
   ['pueblo_pertenencia', 'comunidad_linguistica', 'grupo_etnico', 'lugar_nacimiento_municipio', 'permiso_extranjero'],
   ['jornada', 'temporalidad_contrato', 'tipo_contrato', 'fecha_contratacion', 'fecha_reingreso',
-   'salario_base_contrato', 'profesion', 'titulo', 'forma_pago', 'codigo_banco', 'numero_cuenta', 'tipo_cuenta'],
+   'salario_base_contrato', 'profesion', 'titulo', 'forma_pago', 'codigo_banco', 'numero_cuenta', 'tipo_cuenta',
+   'habilitar_horas_extra'],
   ['departamento_biotime', 'ubicacion_biometrico'],
 ]
 

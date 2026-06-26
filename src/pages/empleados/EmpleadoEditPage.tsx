@@ -57,6 +57,7 @@ function aValoresForm(e: EmpleadoBackend): Partial<EmpleadoCreateValues> {
     codigo_banco: e.codigoBanco ?? '',
     numero_cuenta: e.numeroCuenta ?? '',
     tipo_cuenta: e.tipoCuenta ?? '',
+    habilitar_horas_extra: e.habilitarHorasExtra ?? false,
     // Biométrico: el wizard lo exige al crear; en edición no aplica → dummies válidos que NO se envían.
     departamento_biotime: 1,
     ubicacion_biometrico: 1,
