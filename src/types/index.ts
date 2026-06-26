@@ -341,7 +341,7 @@ export interface DetalleDiaHE {
   ejecutado?: number | null              // ejecutado del día (misma unidad que metaDia)
   cumplimientoPct?: number | null        // ejecutado/meta*100
   cumplioMeta?: boolean                  // alcanzó el 100% de la meta del día
-  salidaAutorizada?: boolean             // salió temprano PERO autorizado por meta cumplida
+  horarioAutorizado?: boolean            // horario programado = oficial por meta cumplida (condona llegada tarde y salida temprana)
   unidad?: 'puntos' | 'kg' | null        // unidad de meta/ejecutado
 }
 

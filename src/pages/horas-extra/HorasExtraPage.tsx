@@ -606,10 +606,10 @@ function EstadoDia({ dia, trabajado }: { dia: DetalleDiaHE; trabajado: boolean }
         <Clock className="h-3 w-3" /> Salió {fmtDuracion(dia.salidaDeltaMin)} antes
       </Badge>,
     )
-  if (dia.salidaAutorizada)
+  if (dia.horarioAutorizado)
     badges.push(
-      <Badge key="sa" tone="green">
-        <Check className="h-3 w-3" /> Salida autorizada
+      <Badge key="ha" tone="green">
+        <Check className="h-3 w-3" /> Horario autorizado
         {dia.cumplimientoPct != null ? ` · meta ${Math.round(dia.cumplimientoPct)}%` : ''}
       </Badge>,
     )

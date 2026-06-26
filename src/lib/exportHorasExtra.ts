@@ -301,9 +301,9 @@ function estadoTexto(d: DetalleDiaHE): string {
   if (d.marcaFueraDeTurno) out.push('Marca fuera de turno')
   if (d.entradaAntes && d.entradaDeltaMin != null) out.push(`Entró ${fmtDur(d.entradaDeltaMin)} antes`)
   if (d.entradaTarde && d.entradaDeltaMin != null) out.push(`Entró ${fmtDur(d.entradaDeltaMin)} tarde`)
-  if (d.salidaTemprano && d.salidaDeltaMin != null && !d.salidaAutorizada) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} antes`)
+  if (d.salidaTemprano && d.salidaDeltaMin != null && !d.horarioAutorizado) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} antes`)
   if (d.salidaTarde && d.salidaDeltaMin != null) out.push(`Salió ${fmtDur(d.salidaDeltaMin)} después`)
-  if (d.salidaAutorizada) out.push(`Salida autorizada${d.cumplimientoPct != null ? ` (meta ${Math.round(d.cumplimientoPct)}%)` : ''}`)
+  if (d.horarioAutorizado) out.push(`Horario autorizado${d.cumplimientoPct != null ? ` (meta ${Math.round(d.cumplimientoPct)}%)` : ''}`)
   if (!out.length) return d.tipo === 'DIA' || d.tipo === 'NOCHE' ? 'OK' : ''
   return out.join('; ')
 }
