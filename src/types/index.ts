@@ -246,7 +246,7 @@ export interface HorasExtraPeriodo {
   sistemas: string[]                     // sistema(s) de turno usados (ej "0-5-2")
 }
 
-export type FuenteTurno = 'ACABADOS' | 'MAQUINAS' | 'PVC'
+export type FuenteTurno = 'ACABADOS' | 'MAQUINAS' | 'PVC' | 'GENERAL'
 
 export interface HorasExtraEmpleado {
   idEmpleado: number

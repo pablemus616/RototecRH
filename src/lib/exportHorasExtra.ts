@@ -59,7 +59,7 @@ function fechaLarga(iso: string): string {
   return `${String(d).padStart(2, '0')} ${MESES[(m ?? 1) - 1] ?? ''} ${y}`
 }
 function fuenteLabel(f?: FuenteTurno): string {
-  return f === 'ACABADOS' ? 'Acabados' : f === 'MAQUINAS' ? 'Máquinas' : f === 'PVC' ? 'PVC' : '—'
+  return f === 'ACABADOS' ? 'Acabados' : f === 'MAQUINAS' ? 'Máquinas' : f === 'PVC' ? 'PVC' : f === 'GENERAL' ? 'General' : '—'
 }
 
 const bordeFino = { style: 'thin' as const, color: { argb: C.borde } }
@@ -127,6 +127,9 @@ function badgeFuente(cell: ExcelJS.Cell, f?: FuenteTurno) {
   } else if (f === 'PVC') {
     fill(cell, 'FFE0F2FE') // sky-100
     cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0369A1' } } // sky-700
+  } else if (f === 'GENERAL') {
+    fill(cell, 'FFE0E7FF') // indigo-100
+    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF4338CA' } } // indigo-700
   } else {
     cell.font = { name: 'Calibri', size: 10, color: { argb: C.subFg } }
   }

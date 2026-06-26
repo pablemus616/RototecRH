@@ -11,12 +11,12 @@ import PreviewTurnosDialog from './PreviewTurnosDialog'
 export default function CargaTurnosPage() {
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
-  const [area, setArea] = useState<1 | 2>(2)
+  const [area, setArea] = useState<1 | 2 | 3>(2)
   const [archivo, setArchivo] = useState<File | null>(null)
   const [preview, setPreview] = useState<PreviewTurnos | null>(null)
   const [cargando, setCargando] = useState(false)
   const [aplicando, setAplicando] = useState(false)
-  const [resultado, setResultado] = useState<{ acabados: number; maquinas: number; avisos: number } | null>(null)
+  const [resultado, setResultado] = useState<{ acabados: number; maquinas: number; generales: number; avisos: number } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const rangoOk = Boolean(desde && hasta && desde <= hasta)
@@ -26,7 +26,7 @@ export default function CargaTurnosPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `plantilla_turnos_${area === 1 ? 'acabados' : 'maquinas'}_${desde}_a_${hasta}.xlsx`
+    a.download = `plantilla_turnos_${area === 1 ? 'acabados' : area === 3 ? 'general' : 'maquinas'}_${desde}_a_${hasta}.xlsx`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -102,6 +102,14 @@ export default function CargaTurnosPage() {
             >
               Máquinas
             </button>
+            <button
+              type="button"
+              aria-pressed={area === 3}
+              onClick={() => setArea(3)}
+              className={cn('h-7 rounded-md px-3 text-xs font-medium', area === 3 ? 'bg-indigo-600 text-white shadow-sm' : 'text-muted-foreground')}
+            >
+              General
+            </button>
           </div>
           <Button onClick={descargar} disabled={!rangoOk} variant="outline" className="h-9 gap-2">
             <Download className="h-4 w-4" /> Descargar plantilla
@@ -121,7 +129,7 @@ export default function CargaTurnosPage() {
         {resultado && (
           <div className="mt-3 flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
             <Check className="h-4 w-4" />
-            Aplicado: <b>{resultado.acabados}</b> acabados · <b>{resultado.maquinas}</b> máquinas · {resultado.avisos} avisos
+            Aplicado: <b>{resultado.acabados}</b> acabados · <b>{resultado.maquinas}</b> máquinas · <b>{resultado.generales}</b> generales · {resultado.avisos} avisos
           </div>
         )}
       </Card>
@@ -129,7 +137,7 @@ export default function CargaTurnosPage() {
       <PreviewTurnosDialog
         open={!!preview}
         preview={preview}
-        area={(preview?.idArea ?? area) as 1 | 2}
+        area={(preview?.idArea ?? area) as 1 | 2 | 3}
         desde={desde}
         hasta={hasta}
         aplicando={aplicando}

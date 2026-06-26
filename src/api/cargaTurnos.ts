@@ -53,7 +53,7 @@ export const cargaTurnosApi = {
     fechaInicial: string,
     fechaFinal: string,
     area: number,
-  ): Promise<{ acabados: number; maquinas: number; avisos: number }> {
+  ): Promise<{ acabados: number; maquinas: number; generales: number; avisos: number }> {
     const archivoBase64 = await fileToBase64(archivo)
     const { data } = await rrhhApi.post('/programacion-turnos/aplicar', {
       fechaInicial,

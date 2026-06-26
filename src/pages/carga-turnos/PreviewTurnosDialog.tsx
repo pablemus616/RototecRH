@@ -174,7 +174,7 @@ function TipoFilter({
 export interface PreviewTurnosDialogProps {
   open: boolean
   preview: PreviewTurnos | null
-  area: 1 | 2
+  area: 1 | 2 | 3
   desde: string
   hasta: string
   aplicando: boolean
@@ -199,6 +199,7 @@ export default function PreviewTurnosDialog({
   const [theadH, setTheadH] = useState(37) // alto real del thead sticky (medido) → offset del header de grupo
 
   const acabados = area === 1
+  const maquinas = area === 2
   const filas = preview?.filas ?? []
 
   const conteos = useMemo(() => {
@@ -240,11 +241,11 @@ export default function PreviewTurnosDialog({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [grupos.length, acabados, open])
+  }, [grupos.length, acabados, maquinas, open])
 
   const visiblesCount = grupos.reduce((n, g) => n + g.filas.length, 0)
-  // Fecha, Tipo, Horario, [Meta acabados | Turno+Máquina máquinas], Sistema, Estado
-  const cols = acabados ? 6 : 7
+  // Fecha, Tipo, Horario, [Meta acabados | Turno+Máquina máquinas | — general], Sistema, Estado
+  const cols = acabados ? 6 : maquinas ? 7 : 5
   const trabajados = conteos.tip.DIA + conteos.tip.NOCHE
   const bloqueado = (preview?.totalErrores ?? 0) > 0
 
@@ -257,11 +258,11 @@ export default function PreviewTurnosDialog({
             <span
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold',
-                acabados ? 'bg-violet-100 text-violet-700' : 'bg-teal-100 text-teal-700',
+                acabados ? 'bg-violet-100 text-violet-700' : maquinas ? 'bg-teal-100 text-teal-700' : 'bg-indigo-100 text-indigo-700',
               )}
             >
-              {acabados ? <Target className="h-3.5 w-3.5" /> : <Cog className="h-3.5 w-3.5" />}
-              {acabados ? 'Acabados' : 'Máquinas'}
+              {acabados ? <Target className="h-3.5 w-3.5" /> : maquinas ? <Cog className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+              {acabados ? 'Acabados' : maquinas ? 'Máquinas' : 'General'}
             </span>
             <DialogTitle className="text-lg">Revisar carga de turnos</DialogTitle>
           </div>
@@ -360,8 +361,8 @@ export default function PreviewTurnosDialog({
                   <th className="w-28">Tipo</th>
                   <th className="w-28">Horario</th>
                   {acabados && <th className="w-24">Meta</th>}
-                  {!acabados && <th className="w-16">Turno</th>}
-                  {!acabados && <th className="w-24">Máquina</th>}
+                  {maquinas && <th className="w-16">Turno</th>}
+                  {maquinas && <th className="w-24">Máquina</th>}
                   <th className="w-20">Sistema</th>
                   <th>Estado</th>
                 </tr>
@@ -378,6 +379,7 @@ export default function PreviewTurnosDialog({
                       nombre={g.nombre}
                       equipo={g.equipo}
                       acabados={acabados}
+                      maquinas={maquinas}
                       dias={dias}
                       metaTotal={metaTotal}
                       gErr={gErr}
@@ -431,6 +433,7 @@ function FragmentGroup({
   nombre,
   equipo,
   acabados,
+  maquinas,
   dias,
   metaTotal,
   gErr,
@@ -442,6 +445,7 @@ function FragmentGroup({
   nombre: string
   equipo: number | null
   acabados: boolean
+  maquinas: boolean
   dias: number
   metaTotal: number
   gErr: boolean
@@ -459,7 +463,7 @@ function FragmentGroup({
             <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border">
               {dias} día{dias === 1 ? '' : 's'}
             </span>
-            {!acabados &&
+            {maquinas &&
               (equipo != null ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-medium text-teal-700">
                   <Cog className="h-3 w-3" /> Equipo {equipo}
@@ -500,8 +504,8 @@ function FragmentGroup({
               {f.horaInicio ? `${fmtHora(f.horaInicio)}–${fmtHora(f.horaFin)}` : '—'}
             </td>
             {acabados && <td className="tabular-nums text-xs">{f.metaDia != null ? fmtMeta(f.metaDia) : '—'}</td>}
-            {!acabados && <td className="tabular-nums text-xs">{f.numTurno ?? '—'}</td>}
-            {!acabados && (
+            {maquinas && <td className="tabular-nums text-xs">{f.numTurno ?? '—'}</td>}
+            {maquinas && (
               <td className="text-xs">
                 {f.maquina != null ? (
                   <span className="inline-flex items-center gap-1 tabular-nums">

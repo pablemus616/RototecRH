@@ -64,6 +64,12 @@ function FuenteBadge({ fuente }: { fuente?: FuenteTurno }) {
         <Boxes className="h-3 w-3" /> PVC
       </span>
     )
+  if (fuente === 'GENERAL')
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium bg-indigo-100 text-indigo-700">
+        <Clock className="h-3 w-3" /> General
+      </span>
+    )
   return <span className="text-xs text-muted-foreground">—</span>
 }
 
@@ -94,6 +100,7 @@ function FuenteFilter({
     { key: 'ACABADOS', label: 'Acabados', dot: 'bg-violet-500', active: 'bg-violet-600 text-white' },
     { key: 'MAQUINAS', label: 'Máquinas', dot: 'bg-teal-500', active: 'bg-teal-600 text-white' },
     { key: 'PVC', label: 'PVC', dot: 'bg-sky-500', active: 'bg-sky-600 text-white' },
+    { key: 'GENERAL', label: 'General', dot: 'bg-indigo-500', active: 'bg-indigo-600 text-white' },
   ]
   return (
     <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
@@ -174,7 +181,7 @@ export default function HorasExtraPage() {
 
   // Conteo por fuente (sobre todo el universo con HE, sin aplicar el filtro de fuente) para las pestañas.
   const conteoFuente = useMemo(() => {
-    const ids = { ACABADOS: new Set<number>(), MAQUINAS: new Set<number>(), PVC: new Set<number>() }
+    const ids = { ACABADOS: new Set<number>(), MAQUINAS: new Set<number>(), PVC: new Set<number>(), GENERAL: new Set<number>() }
     for (const e of q.data ?? []) {
       const tieneHE = e.periodos.some((p) => p.dia > 0 || p.noche > 0 || p.excedente < -0.005)
       if (tieneHE && e.fuente) ids[e.fuente].add(e.idEmpleado)
@@ -183,7 +190,8 @@ export default function HorasExtraPage() {
       ACABADOS: ids.ACABADOS.size,
       MAQUINAS: ids.MAQUINAS.size,
       PVC: ids.PVC.size,
-      TODAS: ids.ACABADOS.size + ids.MAQUINAS.size + ids.PVC.size,
+      GENERAL: ids.GENERAL.size,
+      TODAS: ids.ACABADOS.size + ids.MAQUINAS.size + ids.PVC.size + ids.GENERAL.size,
     }
   }, [q.data])
 
