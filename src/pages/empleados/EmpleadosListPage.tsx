@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Plus, Search } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -94,16 +95,47 @@ export default function EmpleadosListPage() {
     setPage(1)
   }
 
+  function descargarExcel() {
+    const rows = filtered.map((e) => ({
+      ID: e.id,
+      'Nombre completo': displayName(e),
+      DPI: e.numeroIdentificacionNacional ?? '',
+      Empresa: empresaNombre(e.empresaId),
+      Puesto: puestoNombre(e.idPuesto),
+      'Salario base': e.salarioBaseContrato ?? '',
+      'Fecha contratación': formatDate(e.fechaContratacion),
+      Estado: e.estaActivo ? 'Activo' : 'Baja',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Empleados')
+    const estadoTxt =
+      filtroEstado === 'ACTIVO' ? 'Activos' : filtroEstado === 'BAJA' ? 'Bajas' : 'Todos'
+    const puestoTxt =
+      filtroPuesto !== 'TODOS' ? `_${puestoNombre(Number(filtroPuesto)).replace(/\s+/g, '-')}` : ''
+    XLSX.writeFile(wb, `Empleados_${estadoTxt}${puestoTxt}.xlsx`)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {filtered.length} empleado{filtered.length === 1 ? '' : 's'} en la vista actual
         </p>
-        <Button onClick={() => navigate('/empleados/nuevo')}>
-          <Plus className="h-4 w-4" />
-          Nuevo Empleado
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={descargarExcel}
+            disabled={isLoading || filtered.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            Descargar Excel
+          </Button>
+          <Button onClick={() => navigate('/empleados/nuevo')}>
+            <Plus className="h-4 w-4" />
+            Nuevo Empleado
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4">
@@ -156,6 +188,7 @@ export default function EmpleadosListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">ID</TableHead>
               <TableHead>Nombre completo</TableHead>
               <TableHead>DPI</TableHead>
               <TableHead>Empresa</TableHead>
@@ -170,20 +203,20 @@ export default function EmpleadosListPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-destructive">
+                <TableCell colSpan={9} className="text-center text-destructive">
                   Error al cargar empleados
                 </TableCell>
               </TableRow>
             ) : pageItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
                   Sin resultados
                 </TableCell>
               </TableRow>
@@ -194,6 +227,7 @@ export default function EmpleadosListPage() {
                   className="cursor-pointer"
                   onClick={() => navigate(`/empleados/${e.id}`)}
                 >
+                  <TableCell className="font-mono text-xs text-muted-foreground">{e.id}</TableCell>
                   <TableCell className="font-medium">{displayName(e)}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {e.numeroIdentificacionNacional ?? '—'}
